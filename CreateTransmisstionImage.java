@@ -20,12 +20,19 @@ import org.opencv.imgproc.Imgproc;
  * VisibleLightReceiverと対応しており、VisibleLightReceiver2と互換性を持たない。
  * CreateTransmisstionImage2およびVisibleLightReceiver2を利用するマーカーver2と比較して
  * マーカver1が優れている点はないと思われる。現状マーカver2との性能比較のためのクラスである。
- * 
+ *
  * @see VisibleLightReceiver
  * @author iwao
  * @version 1.0
  */
 public class CreateTransmisstionImage extends Thread {
+	public static final int DIVISION = 8;// ブロックの一辺の数
+	public static final int COLLAR_VARIATION = 3;// 色の種類
+	public static final int THICKNESS = -1;// ボーダーの太さ
+	public static final int ROW_MARGIN = 35;// マーカーの横の余白
+	public static final int COL_MARGIN = 55;// マーカーの縦の余白
+	// public static final int DIVISION = 3;
+
 	private ImageDrawing imageDrawing = new ImageDrawing();
 	private JFrame transmisstionImageFrame;
 	private ImageDrawing transmisstionImagePanel;
@@ -43,7 +50,7 @@ public class CreateTransmisstionImage extends Thread {
 
 	/**
 	 * クラスの並列動作に利用<br>
-	 * 
+	 *
 	 * @see CreateTransmisstionImage#startRunning()
 	 * @see CreateTransmisstionImage#stopRunning()
 	 */
@@ -53,7 +60,7 @@ public class CreateTransmisstionImage extends Thread {
 
 	/**
 	 * 外部クラスから呼び出しクラスを実行する
-	 * 
+	 *
 	 * @see CreateTransmisstionImage#run()
 	 * @see CreateTransmisstionImage#stopRunning()
 	 */
@@ -64,7 +71,7 @@ public class CreateTransmisstionImage extends Thread {
 
 	/**
 	 * 外部クラスから呼び出しクラス中断する
-	 * 
+	 *
 	 * @see CreateTransmisstionImage#run()
 	 * @see CreateTransmisstionImage#startRunning()
 	 */
@@ -75,7 +82,7 @@ public class CreateTransmisstionImage extends Thread {
 
 	/**
 	 * 送信内容をリストで返す
-	 * 
+	 *
 	 * @return 受信内容List
 	 */
 	public List<String> getTransmissionList() {
@@ -163,7 +170,7 @@ public class CreateTransmisstionImage extends Thread {
 						System.out.println("colorEncodeエラー");
 						return;
 					}
-					Imgproc.rectangle(srcImage, new Point(x1, y1), new Point(x2, y2), paintColorBGR, -1);
+					Imgproc.rectangle(srcImage, new Point(x1, y1), new Point(x2, y2), paintColorBGR, THICKNESS);
 				}
 			}
 		} else {
@@ -189,7 +196,7 @@ public class CreateTransmisstionImage extends Thread {
 	 */
 	private void createImageLoop() {
 		Mat markerImage = Imgcodecs.imread("mark.jpg");
-		transmisstionImageFrame.setSize(new Dimension(markerImage.rows() + 35, markerImage.cols() + 55));
+		transmisstionImageFrame.setSize(new Dimension(markerImage.rows() + ROW_MARGIN, markerImage.cols() + COL_MARGIN));
 		colorEncode(markerImage, 0, 0, markerImage.height(), markerImage.width(), 1);
 		BufferedImage bufferedImageTemp = imageDrawing.matToBufferedImage(markerImage);
 		transmisstionImagePanel.setimage(bufferedImageTemp);// 変換した画像をPanelに追加

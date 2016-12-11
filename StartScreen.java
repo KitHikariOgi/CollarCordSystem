@@ -12,13 +12,17 @@ import javax.swing.JToggleButton;
 
 /**
  * カラー・コードシステムスタートメニュー
- * 
+ *
  * @see CreateTransmisstionImage2
  * @see VisibleLightReceiver
  * @author iwao
  * @version 1.0
  */
 public class StartScreen extends JFrame implements ActionListener {
+
+	public static final int START_FRAMESIZE_X= 420;// startのｘのframesize
+	public static final int START_FRAMESIZE_Y= 200;// startのｙのframesize
+
 
 	private JToggleButton button1;
 	private JToggleButton button2;
@@ -36,7 +40,7 @@ public class StartScreen extends JFrame implements ActionListener {
 
 		JFrame mainFrame = new JFrame("スタートメニュー");
 		mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		mainFrame.setSize(420, 200);
+		mainFrame.setSize(START_FRAMESIZE_X, START_FRAMESIZE_Y);
 		mainFrame.setLocationRelativeTo(null);
 		JPanel buttonPane = new JPanel();
 		buttonPane.setLayout(new GridLayout(2, 3));

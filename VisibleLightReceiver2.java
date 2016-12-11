@@ -46,7 +46,7 @@ import org.opencv.videoio.VideoCapture;
  * @version 1.0
  */
 public class VisibleLightReceiver2 extends Thread {
-	final int NO_CAPTURED_LEVEL=10;
+
 
 	private ImageDrawing imageDrawing = new ImageDrawing();
 	private JFrame processedImageFrame;
@@ -424,7 +424,7 @@ public class VisibleLightReceiver2 extends Thread {
 		if (webcamImage.empty()) {// 画像が取得できているか判断
 			System.out.println(" --(!) No captured frame -- Break!");// キャプチャの失敗時
 			misscount+=1;
-			if(misscount==NO_CAPTURED_LEVEL){
+			if(misscount==Constants.NO_CAPTURED_LEVEL){
 				JOptionPane.showMessageDialog(null, "カメラが認識されていません、再度確認してください", "Warn",
 				        JOptionPane.WARNING_MESSAGE);
 				stopRunning();
