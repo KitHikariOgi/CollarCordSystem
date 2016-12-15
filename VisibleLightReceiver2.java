@@ -42,7 +42,7 @@ import org.opencv.videoio.VideoCapture;
  * @see CreateTransmisstionImage
  * @see CreateTransmisstionImage2
  * @see VisibleLightReceiver
- * @author iwao
+ * @author Ogi
  * @version 1.0
  */
 public class VisibleLightReceiver2 extends Thread {

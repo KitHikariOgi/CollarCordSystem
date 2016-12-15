@@ -69,7 +69,16 @@ public class ImageDrawing extends JPanel {
 	 * paintComponentは画像の描画に利用
 	 */
 	protected void paintComponent(Graphics g) {
-		BufferedImage temp = getimage();
-		g.drawImage(temp, 10, 10, temp.getWidth(), temp.getHeight(), this);
+		BufferedImage temp;
+		try {
+			temp = getimage();
+		} catch (Exception e) {
+			e.printStackTrace();
+			temp = null;
+		}
+
+		if (temp != null) {
+			g.drawImage(temp, 10, 10, temp.getWidth(), temp.getHeight(), this);
+		}
 	}
 }

@@ -2,8 +2,8 @@ import java.util.List;
 
 /**
  * 送受信の結果をテストする。 マーカver1,ver2ともに利用可能
- * 
- * @author iwao
+ *
+ * @author Ogi
  * @version 1.0
  */
 public class MatchTest {
