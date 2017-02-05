@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
@@ -29,7 +30,7 @@ import org.opencv.videoio.VideoCapture;
  * 原因は３点の認識マーカを含む最小の「矩形」を生成しマーカ範囲を設定しているため、 歪んだ状態のマーカを歪んだ状態のまま取得できていないためである。<br>
  * CreateTransmisstionImage2およびVisibleLightReceiver2を利用するマーカーver2と比較して
  * マーカver1が優れている点はないと思われる。現状マーカver2との性能比較のためのクラスである。
- * 
+ *
  * @see CreateTransmisstionImage
  * @author iwao
  * @version 1.0
@@ -46,7 +47,6 @@ public class VisibleLightReceiver extends Thread {
 	private int division = 3;
 
 	public VisibleLightReceiver() {
-		// TODO 自動生成されたコンストラクター・スタブ
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);// Opencvの利用のため
 		captureCamera = new VideoCapture(0);// 使用webカメラの宣言
 		processedImageFrame = new JFrame("processedImage");// 加工画像用ウィンドウフレーム
@@ -63,7 +63,7 @@ public class VisibleLightReceiver extends Thread {
 
 	/**
 	 * クラスの並列動作に利用<br>
-	 * 
+	 *
 	 * @see VisibleLightReceiver#startRunning()
 	 * @see VisibleLightReceiver#stopRunning()
 	 */
@@ -77,7 +77,7 @@ public class VisibleLightReceiver extends Thread {
 
 	/**
 	 * 外部クラスから呼び出しクラスを実行する
-	 * 
+	 *
 	 * @see VisibleLightReceiver#run()
 	 * @see VisibleLightReceiver#stopRunning()
 	 */
@@ -92,7 +92,7 @@ public class VisibleLightReceiver extends Thread {
 
 	/**
 	 * 外部クラスから呼び出しクラス中断する
-	 * 
+	 *
 	 * @see VisibleLightReceiver#run()
 	 * @see VisibleLightReceiver#startRunning()
 	 */
@@ -104,7 +104,7 @@ public class VisibleLightReceiver extends Thread {
 
 	/**
 	 * 受信内容をリストで返す
-	 * 
+	 *
 	 * @return 受信内容List
 	 */
 	public List<String> getReceiveList() {
@@ -484,6 +484,10 @@ public class VisibleLightReceiver extends Thread {
 		captureCamera.read(webcamImage);// webカメラの映像を画像保存
 		if (webcamImage.empty()) {// 画像が取得できているか判断
 			System.out.println(" --(!) No captured frame -- Break!");// キャプチャの失敗時
+			if (!captureCamera.isOpened()) {
+				JOptionPane.showMessageDialog(null, "カメラが認識されていません、再度確認してください", "Warn", JOptionPane.WARNING_MESSAGE);
+				stopRunning();
+			}
 			return;
 		}
 		Mat processedImage = new Mat(webcamImage.rows(), webcamImage.cols(), webcamImage.type());

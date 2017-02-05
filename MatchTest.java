@@ -27,7 +27,7 @@ public class MatchTest {
 			for (int i = 0; i < transmissionList.size(); i++) {
 				if (!transmissionList.get(i).equals(receiveList.get(i))) {
 					missCount++;
-					System.out.println(transmissionList.get(i) +"がミス");
+					System.out.println(i+"つめの送信dataが"+transmissionList.get(i)+"に対して"+"受信されたもの値が"+receiveList.get(i)+"だったため取得ミスです");
 				}
 			}
 			System.out.println(transmissionList.size() + "中 " + missCount + "がミス");

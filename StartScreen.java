@@ -4,6 +4,8 @@ import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -23,6 +25,7 @@ public class StartScreen extends JFrame implements ActionListener {
 	public static final int START_FRAMESIZE_X= 420;// startのｘのframesize
 	public static final int START_FRAMESIZE_Y= 200;// startのｙのframesize
 
+	private JFrame mainFrame;
 
 	private JToggleButton button1;
 	private JToggleButton button2;
@@ -30,15 +33,18 @@ public class StartScreen extends JFrame implements ActionListener {
 	private JToggleButton button6;
 	private JButton button3;
 	private JButton button4;
-	private VisibleLightReceiver visibleLightReceiver = new VisibleLightReceiver();
+
 	private CreateTransmisstionImage createTransmisstionImage = new CreateTransmisstionImage();
-	private VisibleLightReceiver2 visibleLightReceiver2 = new VisibleLightReceiver2();
+	private VisibleLightReceiver visibleLightReceiver = new VisibleLightReceiver();
+
 	private CreateTransmisstionImage2 createTransmisstionImage2 = new CreateTransmisstionImage2();
+	private VisibleLightReceiver2 visibleLightReceiver2 = new VisibleLightReceiver2(createTransmisstionImage2);
+
 	private MatchTest matchTest = new MatchTest();
 
 	StartScreen() {
 
-		JFrame mainFrame = new JFrame("スタートメニュー");
+		mainFrame = new JFrame("スタートメニュー");
 		mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		mainFrame.setSize(START_FRAMESIZE_X, START_FRAMESIZE_Y);
 		mainFrame.setLocationRelativeTo(null);
@@ -84,6 +90,9 @@ public class StartScreen extends JFrame implements ActionListener {
 
 		mainFrame.add(buttonPane, BorderLayout.CENTER);
 		mainFrame.setVisible(true);
+		visibleLightReceiver2.setDivision(createTransmisstionImage2.getDivision());
+		mainFrame.addWindowListener(new myListener());
+
 	}
 
 	public void actionPerformed(ActionEvent event) {
@@ -119,7 +128,7 @@ public class StartScreen extends JFrame implements ActionListener {
 						createTransmisstionImage.getTransmissionList());
 			}
 			if (button5.isSelected() == true && button6.isSelected() == true) {
-				System.out.print("送受信チェックver2 : ");
+				System.out.print("送受信チェックver2 : \n");
 				matchTest.startTest(visibleLightReceiver2.getReceiveList(),
 						createTransmisstionImage2.getTransmissionList());
 			}
@@ -155,9 +164,16 @@ public class StartScreen extends JFrame implements ActionListener {
 				System.out.println("マーカ受信ver2【OFF】");
 			}
 		}
+		
 	}
 
 	public static void main(String[] args) {
 		new StartScreen();
 	}
+
+	  public class myListener extends WindowAdapter{
+	    public void windowClosing(WindowEvent e) {
+	      System.out.println("システムを終了します....");
+	    }
+	  }
 }

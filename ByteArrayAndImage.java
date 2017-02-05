@@ -28,6 +28,12 @@ import javax.imageio.ImageIO;
 	    os.close();
 	    return bos.toByteArray();
 	  }
+////	if(runCount==0||runCount==10000){
+////	colorEncode(markerImage, 42, 42, markerImage.height() - 43, markerImage.width() - 43, division);
+////}else if(runCount==100000){
+//	colorEncode(markerImage, 42, 42, markerImage.height() - 43, markerImage.width() - 43, division);
+////	runCount=0;
+////}
 
 	}
 

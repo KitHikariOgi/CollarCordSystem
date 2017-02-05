@@ -4,7 +4,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import javax.imageio.ImageIO;
@@ -50,8 +49,7 @@ public class CreateTransmisstionImage2 extends Thread {
 
 	private List<String> transmissionList;
 
-	private byte[] imgBytes;
-	private byte[] outImgBytes;
+	private byte[] outImgBytes;// 画像のバイナリデータ
 
 	/*
 	 * division:ブロックの個数をデータの大きさに基づいて設定(colorEncodeSize(byte[] outBytes))している
@@ -68,20 +66,17 @@ public class CreateTransmisstionImage2 extends Thread {
 		// 各種画像を載せるパネル
 		transmisstionImagePanel = new ImageDrawing();
 		transmisstionImageFrame.setContentPane(transmisstionImagePanel);
-
 		imgFileIn = new File(inputFileName);
 		imgFileOut = new File(outputFileName);
 		imageDrawing = new ImageDrawing();
 		outImgBytes = new byte[fileChecker(imgFileIn)];
-		imgBytes = new byte[fileChecker(imgFileIn)];
-
 		// ファイルの有無をチェック
 		if (imgFileIn.exists() && imgFileOut.exists()) {
 			System.out.println("入力される画像ファイル、出力ファイル共に存在します");
 		} else {
 			System.out.println("出力ファイルまたは入力ファイルが確認出来ません");
 		}
-
+		System.out.println("入力データの指定されているファイルの長さは" + outImgBytes.length + "B");
 		// ファイル読み込み
 		try {
 			readImage = ImageIO.read(imgFileIn);
@@ -91,28 +86,54 @@ public class CreateTransmisstionImage2 extends Thread {
 			outImgBytes = null;
 			e.printStackTrace();
 		}
-
-		// カラーコードのサイズ設定
-		colorEncodeSize(outImgBytes);
-
-		// 四隅のマーカ導入
-		markerImage = Imgcodecs.imread("mark2.jpg");
-		dimensionSetSize_Rows = (markerImage.rows() + Constants.ROW_MARGIN);
-		dimensionSetSize_cols = (markerImage.cols() + Constants.COL_MARGIN);
-		transmisstionImageFrame.setSize(new Dimension(dimensionSetSize_Rows, dimensionSetSize_cols));
-
 		// エンコードを行う情報リスト
 		transmissionList = new ArrayList<String>();
 
-		System.out.println("入力データの指定されているファイルの長さは" + imgBytes.length + "B");
-
+		// カラーコードのサイズ設定
+		colorEncodeSize(outImgBytes);
+		// 四隅のマーカ導入
+		markerImage = Imgcodecs.imread(Constants.MARK2);
+		dimensionSetSize_Rows = (markerImage.rows() + Constants.ROW_MARGIN);
+		dimensionSetSize_cols = (markerImage.cols() + Constants.COL_MARGIN);
+		transmisstionImageFrame.setSize(new Dimension(dimensionSetSize_Rows, dimensionSetSize_cols));
 		if ((division = colorEncodeSize(outImgBytes)) != 0) {
 			System.out.println("今回のブロックの数は" + (outImgBytes.length * Constants.BLOCK_OF_BYTE) + "個なので" + division + "×"
 					+ division + "のカラーコードのサイズに設定します");
 		} else {
 			System.out.println("サイズ設定でのエラーが発生したため、サイズの設定をキャンセルしました");
-
 		}
+
+		// System.out.println((Integer.toBinaryString(outImgBytes[0]&0xff)));
+		// System.out.println((byte) 0x89);
+		// int g = 0;
+		// int co = 0;
+		// byte b = 4;
+		// byte c = 5;
+		// for (int i = 0; i < 4; i++) {
+		// if (i != 3) {
+		// g += b;
+		// } else {
+		// g += c;
+		// }
+		// System.out.println(i + "回目" + g);
+		// if (co == 1) {
+		// g = (g << 4);
+		// }
+		// System.out.println(""+(Integer.parseInt(Integer.toHexString(g))));
+		// System.out.println(i + "回目" + (byte) g);
+		// co++;
+		// }
+
+	}
+
+	/**
+	 * カラー・コード生成処理をループ
+	 */
+	private void createImageLoop() {
+		colorEncode(markerImage, 42, 42, markerImage.height() - 43, markerImage.width() - 43, division);
+		BufferedImage bufferedImageTemp = imageDrawing.matToBufferedImage(markerImage);
+		transmisstionImagePanel.setimage(bufferedImageTemp);// 変換した画像をPanelに追加
+		transmisstionImageFrame.repaint();
 	}
 
 	/**
@@ -144,8 +165,8 @@ public class CreateTransmisstionImage2 extends Thread {
 	 */
 	public void stopRunning() {
 		transmissionList.clear();
-		// 明示的にByte[]imgBytesを0に初期化
-		Arrays.fill(imgBytes, (byte) 0);
+		// 明示的にByte[]outImgBytesを0に初期化
+		// Arrays.fill(outImgBytes, (byte) 0);
 		transmisstionImageFrame.setVisible(false);
 	}
 
@@ -178,7 +199,7 @@ public class CreateTransmisstionImage2 extends Thread {
 	 *            フォーマット名
 	 * @return バイト列
 	 */
-	public static byte[] getBytesFromImage(BufferedImage img, String format) throws IOException {
+	public byte[] getBytesFromImage(BufferedImage img, String format) throws IOException {
 		if (format == null) {
 			format = "png";
 		}
@@ -194,6 +215,37 @@ public class CreateTransmisstionImage2 extends Thread {
 	 */
 	public List<String> getTransmissionList() {
 		return transmissionList;
+	}
+
+	public int getDivision() {
+		return division;
+	}
+
+	/**
+	 * 画像データにおけるカラーコードのサイズの調整を行っている
+	 *
+	 * @param outBytes
+	 */
+	private int colorEncodeSize(byte[] outBytes) {
+		int division = 0;
+		int blocQuantity;
+		int bytesLength;
+
+		codeSize: {
+			for (int i = Constants.BLOCL＿UNDER_LMIT; i <= Constants.BLOCL＿TOP_LMIT; i++) {
+				blocQuantity = (i * i);
+				bytesLength = outBytes.length * Constants.BLOCK_OF_BYTE;
+				if (bytesLength < blocQuantity) {
+					division = i;
+					break codeSize;
+				} else if (i > Constants.BLOCL＿TOP_LMIT) {
+					System.out.println("画像の総容量が大きすぎます\n実験段階のため容量の小さいものにしてください");
+					division = 0;
+					break codeSize;
+				}
+			}
+		}
+		return division;
 	}
 
 	/**
@@ -235,33 +287,6 @@ public class CreateTransmisstionImage2 extends Thread {
 		}
 		return colorEncodeOfBloc;
 
-	}
-
-	/**
-	 * 画像データにおけるカラーコードのサイズの調整を行っている
-	 *
-	 * @param outBytes
-	 */
-	private int colorEncodeSize(byte[] outBytes) {
-		int division = 0;
-		int blocQuantity;
-		int bytesLength;
-
-		codeSize: {
-			for (int i = Constants.BLOCL＿UNDER_LMIT; i <= Constants.BLOCL＿TOP_LMIT; i++) {
-				blocQuantity = (i * i);
-				bytesLength = outBytes.length * Constants.BLOCK_OF_BYTE;
-				if (bytesLength < blocQuantity) {
-					division = i;
-					break codeSize;
-				} else if (i > Constants.BLOCL＿TOP_LMIT) {
-					System.out.println("画像の総容量が大きすぎます\n実験段階のため容量の小さいものにしてください");
-					division = 0;
-					break codeSize;
-				}
-			}
-		}
-		return division;
 	}
 
 	/**
@@ -308,82 +333,74 @@ public class CreateTransmisstionImage2 extends Thread {
 					}
 					switch (colorEncodeOfBloc[count]) {
 					case 0:
-						transmissionList.add("no");
-						paintColorBGR = new Scalar(0, 0, 0);
+						transmissionList.add("no");// 白
+						paintColorBGR = new Scalar(255, 255, 255);// (B,G,R)
 						break;
 					case 1:
-						transmissionList.add("0");
+						transmissionList.add("1");// 赤
 						paintColorBGR = new Scalar(0, 0, 255);
 						break;
 					case 2:
-						transmissionList.add("120");
+						transmissionList.add("2");// 緑
 						paintColorBGR = new Scalar(0, 255, 0);
 						break;
 					case 3:
-						transmissionList.add("240");
+						transmissionList.add("3");// 青
 						paintColorBGR = new Scalar(255, 0, 0);
 						break;
 					case 4:
-						transmissionList.add("60");
+						transmissionList.add("4");// 黄色
 						paintColorBGR = new Scalar(0, 255, 255);
 						break;
 					case 5:
-						transmissionList.add("180");
+						transmissionList.add("5");// シアン
 						paintColorBGR = new Scalar(255, 255, 0);
 						break;
 					case 6:
-						transmissionList.add("300");
-						paintColorBGR = new Scalar(255, 0, 255);
+						transmissionList.add("6");// マゼンタ
+						paintColorBGR = new Scalar(255, 50, 255);
 						break;
 					case 7:
-						transmissionList.add("30");
+						transmissionList.add("7");// オレンジ
 						paintColorBGR = new Scalar(0, 127, 255);
 						break;
 					case 8:
-						transmissionList.add("270");
-						paintColorBGR = new Scalar(255, 0, 127);
-						break;
-					case 9:
-						transmissionList.add("90");
-						paintColorBGR = new Scalar(0, 255, 127);
-						break;
-					case 10:
-						transmissionList.add("150");
-						paintColorBGR = new Scalar(127, 255, 0);
-						break;
-					case 11:
-						transmissionList.add("210");
-						paintColorBGR = new Scalar(255, 127, 0);
-						break;
-					case 12:
-						transmissionList.add("330");
-						paintColorBGR = new Scalar(127, 0, 255);
+						transmissionList.add("8");// 紫
+						paintColorBGR = new Scalar(255, 0, 190);
 						break;
 					case 13:
-						transmissionList.add("space");
-						paintColorBGR = new Scalar(255, 255, 255);
+						transmissionList.add("space");// 黒
+						paintColorBGR = new Scalar(0, 0, 0);
 						break;
 					case 14:// 枠外エラー
 						System.out.println("colorEncodeエラー");
 						return;
+					/////////////////////////////////////////////// ここまで使用
+					case 9:
+						transmissionList.add("90");// 黄緑
+						paintColorBGR = new Scalar(0, 255, 127);
+						break;
+					case 10:
+						transmissionList.add("150");// 青緑
+						paintColorBGR = new Scalar(127, 255, 0);
+						break;
+					case 11:
+						transmissionList.add("210");//
+						paintColorBGR = new Scalar(255, 127, 0);
+						break;
+					case 12:
+						transmissionList.add("330");//
+						paintColorBGR = new Scalar(127, 0, 255);
+						break;
 					}
 					Imgproc.rectangle(srcImage, new Point(x1, y1), new Point(x2, y2), paintColorBGR,
 							Constants.THICKNESS);
+					// System.out.println(transmissionList.get(loopCount));
 					count++;
 					loopCount++;
+
 				}
 			}
 		}
 	}
-
-	/**
-	 * カラー・コード生成処理をループ
-	 */
-	private void createImageLoop() {
-		colorEncode(markerImage, 42, 42, markerImage.height() - 43, markerImage.width() - 43, division);
-		BufferedImage bufferedImageTemp = imageDrawing.matToBufferedImage(markerImage);
-		transmisstionImagePanel.setimage(bufferedImageTemp);// 変換した画像をPanelに追加
-		transmisstionImagePanel.repaint();// パネルを再描画
-	}
-
 }

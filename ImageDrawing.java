@@ -37,6 +37,7 @@ public class ImageDrawing extends JPanel {
 	 * @return BufferedImage of type TYPE_3BYTE_BGR or TYPE_BYTE_GRAY
 	 */
 	public BufferedImage matToBufferedImage(Mat matrix) {
+		BufferedImage image2;
 		int cols = matrix.cols();
 		int rows = matrix.rows();
 		int elemSize = (int) matrix.elemSize();
@@ -60,7 +61,14 @@ public class ImageDrawing extends JPanel {
 		default:
 			return null;
 		}
-		BufferedImage image2 = new BufferedImage(cols, rows, type);
+		try {
+			image2 = new BufferedImage(cols, rows, type);
+
+		} catch (Exception e) {
+//			e.printStackTrace();
+			image2 = null;
+			return image2;
+		}
 		image2.getRaster().setDataElements(0, 0, cols, rows, data);
 		return image2;
 	}
