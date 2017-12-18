@@ -31,30 +31,30 @@ import org.opencv.videoio.VideoCapture;
  * CreateTransmisstionImage2およびVisibleLightReceiver2を利用するマーカーver2と比較して
  * マーカver1が優れている点はないと思われる。現状マーカver2との性能比較のためのクラスである。
  *
- * @see CreateTransmisstionImage_colerOfThree
+ * @see CreateTransmisstionImage_colorOfThree
  * @author iwao
  * @version 1.0
  */
-public class VisibleLightReceiver_colerOfThree extends Thread {
-	private ImageDrawing_colerOfThree imageDrawing_colerOfThree = new ImageDrawing_colerOfThree();
+public class VisibleLightReceiver_colorOfThree extends Thread {
+	private ImageDrawing_colorOfThree imageDrawing_colorOfThree = new ImageDrawing_colorOfThree();
 	private JFrame processedImageFrame;
 	private JFrame hsvImageFrame;
-	private ImageDrawing_colerOfThree processedImagePanel;
-	private ImageDrawing_colerOfThree hsvImagePanel;
+	private ImageDrawing_colorOfThree processedImagePanel;
+	private ImageDrawing_colorOfThree hsvImagePanel;
 	private VideoCapture captureCamera;
 	private boolean runningKey = false;
 	private List<String> receiveList;
 	private int division = 3;
 
-	public VisibleLightReceiver_colerOfThree() {
+	public VisibleLightReceiver_colorOfThree() {
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);// Opencvの利用のため
 		captureCamera = new VideoCapture(0);// 使用webカメラの宣言
 		processedImageFrame = new JFrame("processedImage");// 加工画像用ウィンドウフレーム
 		hsvImageFrame = new JFrame("hsvImageFrame");// HSV画像用ウィンドウフレーム
 		processedImageFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		hsvImageFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-		processedImagePanel = new ImageDrawing_colerOfThree();// 各種画像を載せるパネル
-		hsvImagePanel = new ImageDrawing_colerOfThree();// 各種画像を載せるパネル
+		processedImagePanel = new ImageDrawing_colorOfThree();// 各種画像を載せるパネル
+		hsvImagePanel = new ImageDrawing_colorOfThree();// 各種画像を載せるパネル
 		processedImageFrame.setContentPane(processedImagePanel);
 		hsvImageFrame.setContentPane(hsvImagePanel);
 		receiveList = new ArrayList<String>();// 最終的なデコード結果
@@ -64,8 +64,8 @@ public class VisibleLightReceiver_colerOfThree extends Thread {
 	/**
 	 * クラスの並列動作に利用<br>
 	 *
-	 * @see VisibleLightReceiver_colerOfThree#startRunning()
-	 * @see VisibleLightReceiver_colerOfThree#stopRunning()
+	 * @see VisibleLightReceiver_colorOfThree#startRunning()
+	 * @see VisibleLightReceiver_colorOfThree#stopRunning()
 	 */
 	public void run() {
 		while (runningKey) {
@@ -78,8 +78,8 @@ public class VisibleLightReceiver_colerOfThree extends Thread {
 	/**
 	 * 外部クラスから呼び出しクラスを実行する
 	 *
-	 * @see VisibleLightReceiver_colerOfThree#run()
-	 * @see VisibleLightReceiver_colerOfThree#stopRunning()
+	 * @see VisibleLightReceiver_colorOfThree#run()
+	 * @see VisibleLightReceiver_colorOfThree#stopRunning()
 	 */
 	public void startRunning() {
 		processedImageFrame.setVisible(true);
@@ -93,8 +93,8 @@ public class VisibleLightReceiver_colerOfThree extends Thread {
 	/**
 	 * 外部クラスから呼び出しクラス中断する
 	 *
-	 * @see VisibleLightReceiver_colerOfThree#run()
-	 * @see VisibleLightReceiver_colerOfThree#startRunning()
+	 * @see VisibleLightReceiver_colorOfThree#run()
+	 * @see VisibleLightReceiver_colorOfThree#startRunning()
 	 */
 	public void stopRunning() {
 		processedImageFrame.setVisible(false);
@@ -560,10 +560,10 @@ public class VisibleLightReceiver_colerOfThree extends Thread {
 		}
 		Imgproc.drawContours(processedImage, dorawOutLineList, -1, new Scalar(254, 0, 0), 1);// 輪郭画像にマーカ輪郭を表示
 		contoursList.clear();// 輪郭リストをクリア
-		BufferedImage bufferedImageTemp = imageDrawing_colerOfThree.matToBufferedImage(webcamImage);// 描画のためmat型からbufferedImage型に変換
+		BufferedImage bufferedImageTemp = imageDrawing_colorOfThree.matToBufferedImage(webcamImage);// 描画のためmat型からbufferedImage型に変換
 		processedImagePanel.setimage(bufferedImageTemp);// 変換した画像をPanelに追加
 		processedImagePanel.repaint();// パネルを再描画
-		BufferedImage bufferedImageTemp1 = imageDrawing_colerOfThree.matToBufferedImage(markerImage);// 描画のためmat型からbufferedImage型に変換
+		BufferedImage bufferedImageTemp1 = imageDrawing_colorOfThree.matToBufferedImage(markerImage);// 描画のためmat型からbufferedImage型に変換
 		hsvImagePanel.setimage(bufferedImageTemp1);// 変換した画像をPanelに追加
 		hsvImagePanel.repaint();// パネルを再描画
 

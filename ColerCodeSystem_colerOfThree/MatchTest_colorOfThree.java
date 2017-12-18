@@ -6,7 +6,7 @@ import java.util.List;
  * @author Ogi
  * @version 1.0
  */
-public class MatchTest_colerOfThree {
+public class MatchTest_colorOfThree {
 	/**
 	 * 2つのリストの内容を比較してミス数を表示する。
 	 *

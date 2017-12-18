@@ -15,12 +15,12 @@ import javax.swing.JToggleButton;
 /**
  * カラー・コードシステムスタートメニュー
  *
- * @see CreateTransmisstionImage2_colerOfThree
- * @see VisibleLightReceiver_colerOfThree
+ * @see CreateTransmisstionImage2_colorOfThree
+ * @see VisibleLightReceiver_colorOfThree
  * @author iwao
  * @version 1.0
  */
-public class StartScreen_colerOfThree extends JFrame implements ActionListener {
+public class StartScreen_colorOfThree extends JFrame implements ActionListener {
 
 	public static final int START_FRAMESIZE_X= 420;// startのｘのframesize
 	public static final int START_FRAMESIZE_Y= 200;// startのｙのframesize
@@ -34,15 +34,15 @@ public class StartScreen_colerOfThree extends JFrame implements ActionListener {
 	private JButton button3;
 	private JButton button4;
 
-	private CreateTransmisstionImage_colerOfThree createTransmisstionImage_colerOfThree = new CreateTransmisstionImage_colerOfThree();
-	private VisibleLightReceiver_colerOfThree visibleLightReceiver_colerOfThree = new VisibleLightReceiver_colerOfThree();
+	private CreateTransmisstionImage_colorOfThree createTransmisstionImage_colorOfThree = new CreateTransmisstionImage_colorOfThree();
+	private VisibleLightReceiver_colorOfThree visibleLightReceiver_colorOfThree = new VisibleLightReceiver_colorOfThree();
 
-	private CreateTransmisstionImage2_colerOfThree createTransmisstionImage2_colerOfThree = new CreateTransmisstionImage2_colerOfThree();
-	private VisibleLightReceiver2_colerOfThree visibleLightReceiver2_colerOfThree = new VisibleLightReceiver2_colerOfThree(createTransmisstionImage2_colerOfThree);
+	private CreateTransmisstionImage2_colorOfThree createTransmisstionImage2_colorOfThree = new CreateTransmisstionImage2_colorOfThree();
+	private VisibleLightReceiver2_colorOfThree visibleLightReceiver2_colorOfThree = new VisibleLightReceiver2_colorOfThree(createTransmisstionImage2_colorOfThree);
 
-	private MatchTest_colerOfThree matchTest_colerOfThree = new MatchTest_colerOfThree();
+	private MatchTest_colorOfThree matchTest_colorOfThree = new MatchTest_colorOfThree();
 
-	StartScreen_colerOfThree() {
+	StartScreen_colorOfThree() {
 
 		mainFrame = new JFrame("スタートメニュー");
 		mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -90,7 +90,7 @@ public class StartScreen_colerOfThree extends JFrame implements ActionListener {
 
 		mainFrame.add(buttonPane, BorderLayout.CENTER);
 		mainFrame.setVisible(true);
-		visibleLightReceiver2_colerOfThree.setDivision(createTransmisstionImage2_colerOfThree.getDivision());
+		visibleLightReceiver2_colorOfThree.setDivision(createTransmisstionImage2_colorOfThree.getDivision());
 		mainFrame.addWindowListener(new myListener());
 
 	}
@@ -100,11 +100,11 @@ public class StartScreen_colerOfThree extends JFrame implements ActionListener {
 		if (event.getSource() == button1) {
 			if (button1.isSelected() == true) {
 				button1.setText("<html>マーカ生成ver1<br>【実行中】<html>");
-				createTransmisstionImage_colerOfThree.startRunning();
+				createTransmisstionImage_colorOfThree.startRunning();
 				System.out.println("マーカ生成ver1【ON】");
 			} else {
 				button1.setText("マーカ生成ver1");
-				createTransmisstionImage_colerOfThree.stopRunning();
+				createTransmisstionImage_colorOfThree.stopRunning();
 				System.out.println("マーカ生成ver1【OFF】");
 			}
 
@@ -112,11 +112,11 @@ public class StartScreen_colerOfThree extends JFrame implements ActionListener {
 		if (event.getSource() == button2) {
 			if (button2.isSelected() == true) {
 				button2.setText("<html>マーカ受信ver1<br>【実行中】<html>");
-				visibleLightReceiver_colerOfThree.startRunning();
+				visibleLightReceiver_colorOfThree.startRunning();
 				System.out.println("マーカ受信ver1【ON】");
 			} else {
 				button2.setText("マーカ受信ver1");
-				visibleLightReceiver_colerOfThree.stopRunning();
+				visibleLightReceiver_colorOfThree.stopRunning();
 				System.out.println("マーカ受信ver1【OFF】");
 			}
 
@@ -124,13 +124,13 @@ public class StartScreen_colerOfThree extends JFrame implements ActionListener {
 		if (event.getSource() == button3) {
 			if (button1.isSelected() == true && button2.isSelected() == true) {
 				System.out.print("送受信チェックver1 : ");
-				matchTest_colerOfThree.startTest(visibleLightReceiver_colerOfThree.getReceiveList(),
-						createTransmisstionImage_colerOfThree.getTransmissionList());
+				matchTest_colorOfThree.startTest(visibleLightReceiver_colorOfThree.getReceiveList(),
+						createTransmisstionImage_colorOfThree.getTransmissionList());
 			}
 			if (button5.isSelected() == true && button6.isSelected() == true) {
 				System.out.print("送受信チェックver2 : \n");
-				matchTest_colerOfThree.startTest(visibleLightReceiver2_colerOfThree.getReceiveList(),
-						createTransmisstionImage2_colerOfThree.getTransmissionList());
+				matchTest_colorOfThree.startTest(visibleLightReceiver2_colorOfThree.getReceiveList(),
+						createTransmisstionImage2_colorOfThree.getTransmissionList());
 			}
 		}
 		if (event.getSource() == button4) {
@@ -145,22 +145,22 @@ public class StartScreen_colerOfThree extends JFrame implements ActionListener {
 		if (event.getSource() == button5) {
 			if (button5.isSelected() == true) {
 				button5.setText("<html>マーカ生成ver2<br>【実行中】<html>");
-				createTransmisstionImage2_colerOfThree.startRunning();
+				createTransmisstionImage2_colorOfThree.startRunning();
 				System.out.println("マーカ生成ver2【ON】");
 			} else {
 				button5.setText("マーカ生成ver2");
-				createTransmisstionImage2_colerOfThree.stopRunning();
+				createTransmisstionImage2_colorOfThree.stopRunning();
 				System.out.println("マーカ生成ver2【OFF】");
 			}
 		}
 		if (event.getSource() == button6) {
 			if (button6.isSelected() == true) {
 				button6.setText("<html>マーカ受信ver2<br>【実行中】<html>");
-				visibleLightReceiver2_colerOfThree.startRunning();
+				visibleLightReceiver2_colorOfThree.startRunning();
 				System.out.println("マーカ受信2【ON】");
 			} else {
 				button6.setText("マーカ受信ver");
-				visibleLightReceiver2_colerOfThree.stopRunning();
+				visibleLightReceiver2_colorOfThree.stopRunning();
 				System.out.println("マーカ受信ver2【OFF】");
 			}
 		}
@@ -168,7 +168,7 @@ public class StartScreen_colerOfThree extends JFrame implements ActionListener {
 	}
 
 	public static void main(String[] args) {
-		new StartScreen_colerOfThree();
+		new StartScreen_colorOfThree();
 	}
 
 	  public class myListener extends WindowAdapter{

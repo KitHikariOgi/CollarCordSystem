@@ -12,11 +12,11 @@ import org.opencv.core.Mat;
  * @author iwao
  * @version 1.0
  */
-public class ImageDrawing_colerOfThree extends JPanel {
+public class ImageDrawing_colorOfThree extends JPanel {
 	private BufferedImage image;
 
 	// Create a constructor method
-	public ImageDrawing_colerOfThree() {
+	public ImageDrawing_colorOfThree() {
 		super();
 	}
 

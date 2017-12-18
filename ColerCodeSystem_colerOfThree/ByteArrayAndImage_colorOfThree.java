@@ -5,7 +5,7 @@ import java.io.IOException;
 
 import javax.imageio.ImageIO;
 
-	public class ByteArrayAndImage_colerOfThree {
+	public class ByteArrayAndImage_colorOfThree {
 
 	  public static void main(String[] args) throws IOException {
 	    BufferedImage image = new BufferedImage(100, 75, BufferedImage.TYPE_INT_ARGB);

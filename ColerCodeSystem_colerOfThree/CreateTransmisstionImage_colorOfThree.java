@@ -21,11 +21,11 @@ import org.opencv.imgproc.Imgproc;
  * CreateTransmisstionImage2およびVisibleLightReceiver2を利用するマーカーver2と比較して
  * マーカver1が優れている点はないと思われる。現状マーカver2との性能比較のためのクラスである。
  *
- * @see VisibleLightReceiver_colerOfThree
+ * @see VisibleLightReceiver_colorOfThree
  * @author iwao
  * @version 1.0
  */
-public class CreateTransmisstionImage_colerOfThree extends Thread {
+public class CreateTransmisstionImage_colorOfThree extends Thread {
 	public static final int DIVISION = 8;// ブロックの一辺の数
 	public static final int COLLAR_VARIATION = 3;// 色の種類
 	public static final int THICKNESS = -1;// ボーダーの太さ
@@ -33,17 +33,17 @@ public class CreateTransmisstionImage_colerOfThree extends Thread {
 	public static final int COL_MARGIN = 55;// マーカーの縦の余白
 	// public static final int DIVISION = 3;
 
-	private ImageDrawing_colerOfThree imageDrawing_colerOfThree = new ImageDrawing_colerOfThree();
+	private ImageDrawing_colorOfThree imageDrawing_colorOfThree = new ImageDrawing_colorOfThree();
 	private JFrame transmisstionImageFrame;
-	private ImageDrawing_colerOfThree transmisstionImagePanel;
+	private ImageDrawing_colorOfThree transmisstionImagePanel;
 	private List<String> transmissionList;
 	private int division = 3;
 
-	public CreateTransmisstionImage_colerOfThree() {
+	public CreateTransmisstionImage_colorOfThree() {
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);// Opencvの利用のため
 		transmisstionImageFrame = new JFrame("送信画像ver1");// 加工画像用ウィンドウフレーム
 		transmisstionImageFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-		transmisstionImagePanel = new ImageDrawing_colerOfThree();// 各種画像を載せるパネル
+		transmisstionImagePanel = new ImageDrawing_colorOfThree();// 各種画像を載せるパネル
 		transmisstionImageFrame.setContentPane(transmisstionImagePanel);
 		transmissionList = new ArrayList<String>();// エンコードを行う情報リスト
 	}
@@ -51,8 +51,8 @@ public class CreateTransmisstionImage_colerOfThree extends Thread {
 	/**
 	 * クラスの並列動作に利用<br>
 	 *
-	 * @see CreateTransmisstionImage_colerOfThree#startRunning()
-	 * @see CreateTransmisstionImage_colerOfThree#stopRunning()
+	 * @see CreateTransmisstionImage_colorOfThree#startRunning()
+	 * @see CreateTransmisstionImage_colorOfThree#stopRunning()
 	 */
 	public void run() {
 		createImageLoop();
@@ -61,8 +61,8 @@ public class CreateTransmisstionImage_colerOfThree extends Thread {
 	/**
 	 * 外部クラスから呼び出しクラスを実行する
 	 *
-	 * @see CreateTransmisstionImage_colerOfThree#run()
-	 * @see CreateTransmisstionImage_colerOfThree#stopRunning()
+	 * @see CreateTransmisstionImage_colorOfThree#run()
+	 * @see CreateTransmisstionImage_colorOfThree#stopRunning()
 	 */
 	public void startRunning() {
 		transmisstionImageFrame.setVisible(true);
@@ -72,8 +72,8 @@ public class CreateTransmisstionImage_colerOfThree extends Thread {
 	/**
 	 * 外部クラスから呼び出しクラス中断する
 	 *
-	 * @see CreateTransmisstionImage_colerOfThree#run()
-	 * @see CreateTransmisstionImage_colerOfThree#startRunning()
+	 * @see CreateTransmisstionImage_colorOfThree#run()
+	 * @see CreateTransmisstionImage_colorOfThree#startRunning()
 	 */
 	public void stopRunning() {
 		transmissionList.clear();
@@ -198,7 +198,7 @@ public class CreateTransmisstionImage_colerOfThree extends Thread {
 		Mat markerImage = Imgcodecs.imread("mark.jpg");
 		transmisstionImageFrame.setSize(new Dimension(markerImage.rows() + ROW_MARGIN, markerImage.cols() + COL_MARGIN));
 		colorEncode(markerImage, 0, 0, markerImage.height(), markerImage.width(), 1);
-		BufferedImage bufferedImageTemp = imageDrawing_colerOfThree.matToBufferedImage(markerImage);
+		BufferedImage bufferedImageTemp = imageDrawing_colorOfThree.matToBufferedImage(markerImage);
 		transmisstionImagePanel.setimage(bufferedImageTemp);// 変換した画像をPanelに追加
 		transmisstionImagePanel.repaint();// パネルを再描画
 	}
