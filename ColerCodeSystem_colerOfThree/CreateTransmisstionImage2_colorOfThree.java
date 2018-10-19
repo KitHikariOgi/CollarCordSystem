@@ -48,7 +48,7 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 	private String outputFileName = (Constants_colorOfThree.OUT_IMG_PATH);
 	private ImageDrawing_colorOfThree imageDrawing;
 	private ImageDrawing_colorOfThree transmisstionImagePanel;
-	private List<String> transmissionList;
+	private ArrayList<String> transmissionList;
 	private HashMap<Integer, String> colorPatternMap;
 	private byte[] outImgBytes;// 画像のバイナリデータ
 	private int division; /*
@@ -57,25 +57,67 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 							 * 現在のところ設定できるのが、ミス率なども考慮しdivision = 3～33 ほどである)
 							 */
 	private boolean codeMakeCheck;
-	private boolean key = true;
+	private boolean panelLoopF;
+	private boolean key;
 
 	public CreateTransmisstionImage2_colorOfThree() {
-		// Opencvの利用のため
-		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);// Opencvの利用のため
+		createCodeSystemPresetting();
+		flagCheckSet();
+		fileChecker();
+		fileRead();
+		Pattern(colorPatternMap);
+		division = colorEncodeSize(outImgBytes);// コードサイズ設定
+		codeSetup();
+	}
 
-		// 加工画像用ウィンドウフレーム,設定
-		transmisstionImageFrame = new JFrame("送信画像ver2");
-		transmisstionImageFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-		// 各種画像を載せるパネル
-		transmisstionImagePanel = new ImageDrawing_colorOfThree();
-		transmisstionImageFrame.setContentPane(transmisstionImagePanel);
-		imgFileIn = new File(inputFileName);
-		imgFileOut = new File(outputFileName);
-		imageDrawing = new ImageDrawing_colorOfThree();
-		outImgBytes = new byte[fileChecker(imgFileIn)];
+	/**
+	 * 四隅のマーカ導入
+	 */
+	private void codeSetup() {
+		markerImage = new Mat[5];
+		codeNo = 0;
+		for (int i = 0; i <= 4; i++) {
+			markerImage[i] = Imgcodecs.imread(Constants_colorOfThree.MARK2);
+			dimensionSetSize_Rows = (markerImage[i].rows() + Constants_colorOfThree.ROW_MARGIN);
+			dimensionSetSize_cols = (markerImage[i].cols() + Constants_colorOfThree.COL_MARGIN);
+		}
+		transmisstionImageFrame.setSize(new Dimension(dimensionSetSize_Rows, dimensionSetSize_cols));
+		if ((division != 0)) {
+			System.out.println("今回のデータ量は" + outImgBytes.length + "であり、全ブロック数は" + (outImgBytes.length * Constants_colorOfThree.BLOCK_OF_BYTE) + "個です。"
+					+ "今回は固定で行うため12×12のコードを5枚でサイズを固定しております。");
+		} else {
+			System.out.println("サイズ設定でのエラーが発生したため、サイズの設定をキャンセルしました");
+		}
+		// System.out.println("今回のブロックの数は" + (outImgBytes.length *
+		// Constants_colorOfThree.BLOCK_OF_BYTE) + "個ですので"
+		// + division + "×" + division + "のカラーコードのサイズに設定します");
+		//		System.out.println(outImgBytes.length);
+		//		System.out.println((Integer.toBinaryString(outImgBytes[0] & 0xff)));
+		//		System.out.println(outImgBytes[1]);
+		//		System.out.println((Integer.parseInt(Integer.toHexString((outImgBytes[0]
+		//				& 0xff)))));
+	}
 
-		codeMakeCheck = true;
-		// ファイルの有無をチェック
+	/**
+	 * ファイル読み込み
+	 */
+	private void fileRead() {
+
+		try {
+			readImage = ImageIO.read(imgFileIn);
+			outImgBytes = getBytesFromImage(readImage, format);
+		} catch (Exception e) {
+			readImage = null;
+			outImgBytes = null;
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * ファイルの有無をチェック
+	 */
+	private void fileChecker() {
 		if (!imgFileIn.exists()) {
 			System.out.println("入力される画像ファイルは存在しません");
 		}
@@ -85,44 +127,37 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 			System.out.println("出力ファイル、入力ファイルが共に確認出来ました");
 			System.out.println("入力データの指定されているファイルの長さは" + outImgBytes.length + "B");
 		}
-		// ファイル読み込み
-		try {
-			readImage = ImageIO.read(imgFileIn);
-			outImgBytes = getBytesFromImage(readImage, format);
-		} catch (Exception e) {
-			readImage = null;
-			outImgBytes = null;
-			e.printStackTrace();
-		}
+	}
+
+	/**
+	 * フラグの設定
+	 */
+	private void flagCheckSet() {
+		codeMakeCheck = true;
+		panelLoopF = true;
+		key = true;
+	}
+
+	/**
+	 * 各種初期設定
+	 */
+	private void createCodeSystemPresetting() {
+		// 加工画像用ウィンドウフレーム,設定
+		transmisstionImageFrame = new JFrame("送信画像ver2");
+		transmisstionImageFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+		// 各種画像を載せるパネル
+		transmisstionImagePanel = new ImageDrawing_colorOfThree();
+		transmisstionImageFrame.setContentPane(transmisstionImagePanel);
+
+		imgFileIn = new File(inputFileName);
+		imgFileOut = new File(outputFileName);
+		imageDrawing = new ImageDrawing_colorOfThree();
+		outImgBytes = new byte[fileChecker(imgFileIn)];
+
 		// エンコードを行う情報リスト
 		transmissionList = new ArrayList<String>();
 		// ブロックでのカラーパターンマップを記憶
 		colorPatternMap = new HashMap<Integer, String>();
-		Pattern(colorPatternMap);
-		// コードサイズ設定
-		colorEncodeSize(outImgBytes);
-		// 四隅のマーカ導入
-		markerImage = new Mat[5];
-		codeNo = 0;
-		for (int i = 0; i <= 4; i++) {
-			markerImage[i] = Imgcodecs.imread(Constants_colorOfThree.MARK2);
-			dimensionSetSize_Rows = (markerImage[i].rows() + Constants_colorOfThree.ROW_MARGIN);
-			dimensionSetSize_cols = (markerImage[i].cols() + Constants_colorOfThree.COL_MARGIN);
-		}
-		transmisstionImageFrame.setSize(new Dimension(dimensionSetSize_Rows, dimensionSetSize_cols));
-		if ((division = colorEncodeSize(outImgBytes)) != 0) {
-			// System.out.println("今回のブロックの数は" + (outImgBytes.length *
-			// Constants_colorOfThree.BLOCK_OF_BYTE) + "個ですので"
-			// + division + "×" + division + "のカラーコードのサイズに設定します");
-			System.out.println("今回のブロックの数は" + (outImgBytes.length * Constants_colorOfThree.BLOCK_OF_BYTE) + "個ですので"
-					+ "今回は固定で行うため11×11のコードを5枚でサイズを固定しております。");
-		} else {
-			System.out.println("サイズ設定でのエラーが発生したため、サイズの設定をキャンセルしました");
-		}
-		// System.out.println(outImgBytes.length);
-		// System.out.println((Integer.toBinaryString(outImgBytes[0] & 0xff)));
-		// System.out.println((Integer.parseInt(Integer.toHexString((outImgBytes[0]
-		// & 0xff)))));
 	}
 
 	/**
@@ -131,58 +166,58 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 	 * @palam colorPatternMap2
 	 */
 	private void Pattern(HashMap<Integer, String> colorPatternMap2) {
-		for (int i = 0; i <= Constants_colorOfThree.COLOR_PATTERN; i++) {
+		for (byte i = 0; i <= Constants_colorOfThree.COLOR_PATTERN; i++) {
 			switch (i) {
 			case 0:
-				colorPatternMap2.put(i, "赤緑");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_RED_GREEN, "赤緑");
 				break;
 			case 1:
-				colorPatternMap2.put(i, "赤赤");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_RED_RED, "赤赤");
 				break;
 			case 2:
-				colorPatternMap2.put(i, "赤青");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_RED_BLUE, "赤青");
 				break;
 			case 3:
-				colorPatternMap2.put(i, "赤白");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_RED_WHITE, "赤白");
 				break;
 			case 4:
-				colorPatternMap2.put(i, "青赤");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_BLUE_RED, "青赤");
 				break;
 			case 5:
-				colorPatternMap2.put(i, "青青");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_BLUE_BLUE, "青青");
 				break;
 			case 6:
-				colorPatternMap2.put(i, "青緑");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_BLUE_GREEN, "青緑");
 				break;
 			case 7:
-				colorPatternMap2.put(i, "青白");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_BLUE_WHITE, "青白");
 				break;
 			case 8:
-				colorPatternMap2.put(i, "緑赤");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_GREEN_RED, "緑赤");
 				break;
 			case 9:
-				colorPatternMap2.put(i, "緑青");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_GREEN_BLUE, "緑青");
 				break;
 			case 10:
-				colorPatternMap2.put(i, "緑緑");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_GREEN_GREEN, "緑緑");
 				break;
 			case 11:
-				colorPatternMap2.put(i, "緑白");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_GREEN_WHITE, "緑白");
 				break;
 			case 12:
-				colorPatternMap2.put(i, "白赤");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_WHITE_RED, "白赤");
 				break;
 			case 13:
-				colorPatternMap2.put(i, "白青");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_WHITE_BLUE, "白青");
 				break;
 			case 14:
-				colorPatternMap2.put(i, "白緑");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_WHITE_GREEN, "白緑");
 				break;
 			case 15:
-				colorPatternMap2.put(i, "白白");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_WHITE_WHITE, "白白");
 				break;
 			case 16:
-				colorPatternMap2.put(i, "ss");
+				colorPatternMap2.put(Constants_colorOfThree.BLOCPATTERN_SPACE, "ss");
 				break;
 			}
 		}
@@ -210,6 +245,7 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 	public void startRunning() {
 		transmisstionImageFrame.setVisible(true);
 		new Thread(this).start();
+		key = true;
 	}
 
 	/**
@@ -219,11 +255,18 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 	 * @see CreateTransmisstionImage2_colorOfThree#startRunning()
 	 */
 	public void stopRunning() {
+		transmisstionImageFrame.setVisible(false);
 		key = false;
-		transmissionList.clear();
+		panelLoopF = false;
+		// transmissionList.clear();
 		// 明示的にByte[]outImgBytesを0に初期化
 		// Arrays.fill(outImgBytes, (byte) 0);
-		transmisstionImageFrame.setVisible(false);
+
+		// for (int j = 0; j < markerImage.length; j++) {
+		// markerImage[j].
+		// }
+		// codeMakeCheck = true;
+		// codeNo=0;
 	}
 
 	/**
@@ -290,7 +333,7 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 	 * @return division
 	 */
 	private int colorEncodeSize(byte[] outBytes) {
-		int division = 11;
+		int division = 12;
 		// int blocQuantity;
 		// int bytesLength;
 		// codeSize: {
@@ -339,17 +382,11 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 	 * @param division
 	 */
 	private void colorEncode(Mat[] srcImage, double startX, double startY, double endX, double endY, int division) {
-		int count = 0, loopCount = 0, falfFourBits = 0, byteIndexCounter = 0, mapOfPattern = 0,
-				colorEncodeOfBloc[] = null;
+		int count = 0, loopCount = 0, falfFourBits = 0, byteIndexCounter = 0, mapOfPattern = 0, colorEncodeOfBloc[] = null;
 		Scalar paintColorBGR = null;
 		double oneThirdWidth = (endX - startX) / division;
 		double oneThirdHeight = (endY - startY) / division;
-		boolean code0 = false;
-		boolean code1 = false;
-		boolean code2 = false;
-		boolean code3 = false;
-		boolean code4 = false;
-		boolean codeend = false;
+		boolean code0 = false, code1 = false, code2 = false, code3 = false, code4 = false, codeend = false;
 		byte codeNumber = 0;
 		while (codeend == false) {
 			for (int i = 0; i < division; i++) {
@@ -374,57 +411,57 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 						codeNumber++;
 					} else if (i == 0 && j == 1 || i == 0 && j == 2) {
 						// コード情報の埋め込み部分(現在のところはマーカー部分を除いた左上から、コードのNo・・・等々
-						// 現行のシステムはブロック二つ分を用いて4×4 計16枚のブロックを判断可能としている)
+						// 現行のシステムはブロック二つ分を用いて4×4 計16通りのブロックを判断可能としているそのため最大16枚のコードを作成可能)
 						int x1 = (int) (startX + (j * oneThirdWidth));
 						int y1 = (int) (startY + (i * oneThirdHeight));
 						int x2 = (int) (startX + ((j + 1) * oneThirdWidth));
 						int y2 = (int) (startY + ((i + 1) * oneThirdHeight));
 						if (code0 == false) {
 							if (j == 1) {
-								transmissionList.add("1");// 赤
+								//								transmissionList.add("1");// 赤
 								paintColorBGR = new Scalar(0, 0, 255);
 							} else if (j == 2) {
-								transmissionList.add("1");// 赤
+								//								transmissionList.add("1");// 赤
 								paintColorBGR = new Scalar(0, 0, 255);
 							}
 							Imgproc.rectangle(srcImage[codeNumber], new Point(x1, y1), new Point(x2, y2), paintColorBGR,
 									Constants_colorOfThree.THICKNESS);
 						} else if (code0 && code1 == false) {
 							if (j == 1) {
-								transmissionList.add("2");// 緑
+								//								transmissionList.add("2");// 緑
 								paintColorBGR = new Scalar(0, 255, 0);
 							} else if (j == 2) {
-								transmissionList.add("2");// 緑
+								//								transmissionList.add("2");// 緑
 								paintColorBGR = new Scalar(0, 255, 0);
 							}
 							Imgproc.rectangle(srcImage[codeNumber], new Point(x1, y1), new Point(x2, y2), paintColorBGR,
 									Constants_colorOfThree.THICKNESS);
 						} else if (code0 && code1 && code2 == false) {
 							if (j == 1) {
-								transmissionList.add("3");// 青
+								//								transmissionList.add("3");// 青
 								paintColorBGR = new Scalar(255, 0, 0);
 							} else if (j == 2) {
-								transmissionList.add("3");// 青
+								//								transmissionList.add("3");// 青
 								paintColorBGR = new Scalar(255, 0, 0);
 							}
 							Imgproc.rectangle(srcImage[codeNumber], new Point(x1, y1), new Point(x2, y2), paintColorBGR,
 									Constants_colorOfThree.THICKNESS);
 						} else if (code0 && code1 && code2 && code3 == false) {
 							if (j == 1) {
-								transmissionList.add("no");// 白
+								//								transmissionList.add("4");// 白
 								paintColorBGR = new Scalar(255, 255, 255);
 							} else if (j == 2) {
-								transmissionList.add("no");// 白
+								//								transmissionList.add("4");// 白
 								paintColorBGR = new Scalar(255, 255, 255);
 							}
 							Imgproc.rectangle(srcImage[codeNumber], new Point(x1, y1), new Point(x2, y2), paintColorBGR,
 									Constants_colorOfThree.THICKNESS);
 						} else if (code0 && code1 && code2 && code3) {
 							if (j == 1) {
-								transmissionList.add("1");// 赤
+								//								transmissionList.add("1");// 赤
 								paintColorBGR = new Scalar(0, 0, 255);
 							} else if (j == 2) {
-								transmissionList.add("2");// 緑
+								//								transmissionList.add("2");// 緑
 								paintColorBGR = new Scalar(0, 255, 0);
 							}
 							Imgproc.rectangle(srcImage[codeNumber], new Point(x1, y1), new Point(x2, y2), paintColorBGR,
@@ -496,7 +533,7 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 									transmissionList.add("1");// 赤
 									paintColorBGR = new Scalar(0, 0, 255);
 								} else {
-									transmissionList.add("no");// 白
+									transmissionList.add("4");// 白
 									paintColorBGR = new Scalar(255, 255, 255);// (B,G,R)
 								}
 								break;
@@ -532,7 +569,7 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 									transmissionList.add("3");// 青
 									paintColorBGR = new Scalar(255, 0, 0);
 								} else {
-									transmissionList.add("no");// 白
+									transmissionList.add("4");// 白
 									paintColorBGR = new Scalar(255, 255, 255);// (B,G,R)
 								}
 								break;
@@ -568,13 +605,13 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 									transmissionList.add("2");// 緑
 									paintColorBGR = new Scalar(0, 255, 0);
 								} else {
-									transmissionList.add("no");// 白
+									transmissionList.add("4");// 白
 									paintColorBGR = new Scalar(255, 255, 255);// (B,G,R)
 								}
 								break;
 							case "白赤":
 								if (count == 0 || count == 2) {
-									transmissionList.add("no");// 白
+									transmissionList.add("4");// 白
 									paintColorBGR = new Scalar(255, 255, 255);// (B,G,R)
 								} else {
 									transmissionList.add("1");// 赤
@@ -583,7 +620,7 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 								break;
 							case "白青":
 								if (count == 0 || count == 2) {
-									transmissionList.add("no");// 白
+									transmissionList.add("4");// 白
 									paintColorBGR = new Scalar(255, 255, 255);// (B,G,R)
 								} else {
 									transmissionList.add("3");// 青
@@ -592,7 +629,7 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 								break;
 							case "白緑":
 								if (count == 0 || count == 2) {
-									transmissionList.add("no");// 白
+									transmissionList.add("4");// 白
 									paintColorBGR = new Scalar(255, 255, 255);// (B,G,R)
 								} else {
 									transmissionList.add("2");// 緑
@@ -601,10 +638,10 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 								break;
 							case "白白":
 								if (count == 0 || count == 2) {
-									transmissionList.add("no");// 白
+									transmissionList.add("4");// 白
 									paintColorBGR = new Scalar(255, 255, 255);// (B,G,R)
 								} else {
-									transmissionList.add("no");// 白
+									transmissionList.add("4");// 白
 									paintColorBGR = new Scalar(255, 255, 255);// (B,G,R)
 								}
 								break;
@@ -615,15 +652,13 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 							}
 						Imgproc.rectangle(srcImage[codeNumber], new Point(x1, y1), new Point(x2, y2), paintColorBGR,
 								Constants_colorOfThree.THICKNESS);
-						// BufferedImage bufferedImageTemp =
-						// transmisstionImagePanel.matToBufferedImage(srcImage);
-						// transmisstionImagePanel.setimage(bufferedImageTemp);//
-						// 変換した画像をPanelに追加
 						count++;
 						loopCount++;
 					}
 				}
-				// transmisstionImagePanel.repaint();// パネルを再描画
+				BufferedImage bufferedImageTemp = imageDrawing.matToBufferedImage(markerImage[codeNo]);
+				transmisstionImagePanel.setimage(bufferedImageTemp);// 変換した画像をPanelに追加
+				transmisstionImagePanel.repaint();// パネルを再描画
 			}
 			if (code0 == true && code1 == true && code2 == true && code3 == true && code4 == true) {
 				System.out.print("コードcomplete");
@@ -639,20 +674,25 @@ public class CreateTransmisstionImage2_colorOfThree extends Thread {
 		if (codeMakeCheck) {
 			colorEncode(markerImage, 42, 42, 457, 457, division);
 			codeMakeCheck = false;
+//			transmissionList.forEach(s -> {
+//				System.out.println(s);
+//			});
+			System.out.print("\n"+transmissionList+"\n");
 		}
-		if (codeNo > 4) {
+		if (codeNo > 4 || panelLoopF == false) {
 			codeNo = 0;
+			panelLoopF = true;
 		}
+
 		BufferedImage bufferedImageTemp = imageDrawing.matToBufferedImage(markerImage[codeNo]);
 		transmisstionImagePanel.setimage(bufferedImageTemp);// 変換した画像をPanelに追加
 		transmisstionImageFrame.repaint();
 		try {
-			Thread.sleep(1000);
+			Thread.sleep(400);
 		} catch (InterruptedException e) {
-			// TODO 自動生成された catch ブロック
 			e.printStackTrace();
 		}
-		// System.out.println(transmissionList.size());
+		//System.out.println(transmissionList.size());
 		codeNo++;
 	}
 

@@ -129,8 +129,8 @@ public class StartScreen_colorOfThree extends JFrame implements ActionListener {
 			}
 			if (button5.isSelected() == true && button6.isSelected() == true) {
 				System.out.print("送受信チェックver2 : \n");
-				matchTest_colorOfThree.startTest(visibleLightReceiver2_colorOfThree.getReceiveList(),
-						createTransmisstionImage2_colorOfThree.getTransmissionList());
+//				matchTest_colorOfThree.startTest(visibleLightReceiver2_colorOfThree.getReceiveList(),
+//						createTransmisstionImage2_colorOfThree.getTransmissionList());
 			}
 		}
 		if (event.getSource() == button4) {
@@ -164,7 +164,7 @@ public class StartScreen_colorOfThree extends JFrame implements ActionListener {
 				System.out.println("マーカ受信ver2【OFF】");
 			}
 		}
-		
+
 	}
 
 	public static void main(String[] args) {

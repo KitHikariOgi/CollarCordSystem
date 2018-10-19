@@ -3,13 +3,13 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 
+import org.apache.commons.lang3.StringUtils;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
@@ -20,7 +20,6 @@ import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
-import org.opencv.videoio.Videoio;
 
 /**
  * 岩男/マーカver2用受信機<br>
@@ -52,21 +51,45 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 
 	private int division;
 	private int TransformKey;
-	private boolean runningKey;
-	private boolean listCountCheck;
+	private byte loopCountKeep;
+	private int cameraCount;
 
-	private List<String> receiveList;
+	double[][] parts_Of_Data;
+	String[][] receiveList_Panel;
+
+	private boolean runningKey;
+	private boolean keepCheck;
+	private boolean listCountCheck;
+	private boolean receiveAction;
+	private boolean[] codeCheck;
+	private boolean codeCountCheck;/*
+									 * 今回は5つのパネルを用いて5つのコードをあらかじめ設定して動画像処理に焦点を合わせてプログラムしている。
+									 * したがって、何枚で構成されているか分からないコードについては認識できない。
+									 * 今後コード情報の部分にも全部で何枚であるのかというコードも組み込まなくてはならない。
+									 */
+	private char codeNoKeep = '\0';//コード情報(№)二ブロックのうち1ブロック目
+	private String codeNo = "", PatternKeep_First_str = "";//コード情報(№)
+	private ArrayList<String> receiveList_Parts;//最終的なコードの配列とパネルのコード配列
+	private ArrayList<String> receiveList;//最終的なパネルのコードを二次元で管理(最後に受信リストに代入するもの)
 	private List<Byte> inImgBytes;// 取得メディアバイナリデータ
-	private HashMap<String, Byte> colorPatternMap_V;
+	private HashMap<String, Integer> colorPatternMap_V;
 
 	private CreateTransmisstionImage2_colorOfThree createTransmisstionImage2_colorOfThree;
 
 	public VisibleLightReceiver2_colorOfThree(
 			CreateTransmisstionImage2_colorOfThree createTransmisstionImage2_colorOfThree) {
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);// Opencvの利用のため
-		captureCamera = new VideoCapture(0);// 使用webカメラの宣言
 		this.createTransmisstionImage2_colorOfThree = createTransmisstionImage2_colorOfThree;
-		// 加工画像用ウィンドウフレーム
+		codeReceiverSystemPresetting();
+		flagCheckSet();
+		Pattern(colorPatternMap_V);
+	}
+
+	/**
+	 * 各種初期設定
+	 */
+	private void codeReceiverSystemPresetting() {
+		captureCamera = new VideoCapture(0);// 使用webカメラの宣言
 		processedImageFrame = new JFrame("processedImage");
 		processedImageFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		decordeImgFrame = new JFrame("byte配列からのimg変換");
@@ -82,16 +105,17 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 		hsvImagePanel = new ImageDrawing_colorOfThree();
 		hsvImageFrame.setContentPane(hsvImagePanel);
 		imageDrawing_colorOfThree = new ImageDrawing_colorOfThree();
-		runningKey = false;
-		listCountCheck = false;
-		// 最終的なデコード結果
+		// 最終的なデコード受信結果(それぞれのパネルデータ)
+		receiveList_Panel = new String[Constants_colorOfThree.CODE_NUMBER][Constants_colorOfThree.NUMBER＿OF_PANELDATA];
+		receiveList_Parts = new ArrayList<String>();
 		receiveList = new ArrayList<String>();
 		// メディアバイナリデータ
 		inImgBytes = new ArrayList<Byte>();
 		// ブロックでのカラーパターンマップを記憶
-		colorPatternMap_V = new HashMap<String, Byte>();
-		Pattern(colorPatternMap_V);
-
+		colorPatternMap_V = new HashMap<String, Integer>();
+		codeCheck = new boolean[Constants_colorOfThree.CODE_NUMBER];
+		//今回はコード枚数5枚,1枚の情報量が定まっているため可変長ではなく固定としてデータ配列を定めている。
+		parts_Of_Data = new double[Constants_colorOfThree.CODE_NUMBER][Constants_colorOfThree.NUMBER＿OF_PARTS_OF_DATA];
 	}
 
 	/**
@@ -102,6 +126,7 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 	 */
 	public void run() {
 		while (runningKey) {
+			//System.out.println(cameraCount);
 			receiverLoop();
 		}
 	}
@@ -138,14 +163,19 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 	 *
 	 * @return 受信内容List
 	 */
-	public List<String> getReceiveList() {
-		return receiveList;
+	public String[][] getReceiveList() {
+		return receiveList_Panel;
 	}
 
 	/**
 	 * 受信リスト,メディアバイナリデータをクリア
 	 */
 	private void clearReceiveImgList() {
+		//明示的にByte[]outImgBytesを0に初期化
+		//		if (receiveList_Panel.length != 0) {
+		//			Arrays.fill(receiveList, null);
+		//		}
+		receiveList_Parts.clear();
 		receiveList.clear();
 		inImgBytes.clear();
 	}
@@ -165,63 +195,78 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 	}
 
 	/**
+	 * フラグの設定
+	 */
+	private void flagCheckSet() {
+		runningKey = false;
+		listCountCheck = false;
+		codeCountCheck = false;
+		keepCheck = false;
+		receiveAction = true;
+		for (int i = 0; i < Constants_colorOfThree.CODE_NUMBER; i++) {
+			codeCheck[i] = false;
+		}
+
+	}
+
+	/**
 	 * カラーパターンの色の順序によって数値を振り分け設置
 	 *
 	 * @palam colorPatternMap2
 	 */
-	private void Pattern(HashMap<String, Byte> colorPatternMap2) {
-		for (Byte i = 0; i <= Constants_colorOfThree.COLOR_PATTERN; i++) {
+	private void Pattern(HashMap<String, Integer> colorPatternMap2) {
+		for (byte i = 0; i <= Constants_colorOfThree.COLOR_PATTERN; i++) {
 			switch (i) {
 			case 0:
-				colorPatternMap2.put("赤緑", i);
+				colorPatternMap2.put("赤緑", Constants_colorOfThree.BLOCPATTERN_RED_GREEN);
 				break;
 			case 1:
-				colorPatternMap2.put("赤赤", i);
+				colorPatternMap2.put("赤赤", Constants_colorOfThree.BLOCPATTERN_RED_RED);
 				break;
 			case 2:
-				colorPatternMap2.put("赤青", i);
+				colorPatternMap2.put("赤青", Constants_colorOfThree.BLOCPATTERN_RED_BLUE);
 				break;
 			case 3:
-				colorPatternMap2.put("赤白", i);
+				colorPatternMap2.put("赤白", Constants_colorOfThree.BLOCPATTERN_RED_WHITE);
 				break;
 			case 4:
-				colorPatternMap2.put("青赤", i);
+				colorPatternMap2.put("青赤", Constants_colorOfThree.BLOCPATTERN_BLUE_RED);
 				break;
 			case 5:
-				colorPatternMap2.put("青青", i);
+				colorPatternMap2.put("青青", Constants_colorOfThree.BLOCPATTERN_BLUE_BLUE);
 				break;
 			case 6:
-				colorPatternMap2.put("青緑", i);
+				colorPatternMap2.put("青緑", Constants_colorOfThree.BLOCPATTERN_BLUE_GREEN);
 				break;
 			case 7:
-				colorPatternMap2.put("青白", i);
+				colorPatternMap2.put("青白", Constants_colorOfThree.BLOCPATTERN_BLUE_WHITE);
 				break;
 			case 8:
-				colorPatternMap2.put("緑赤", i);
+				colorPatternMap2.put("緑赤", Constants_colorOfThree.BLOCPATTERN_GREEN_RED);
 				break;
 			case 9:
-				colorPatternMap2.put("緑青", i);
+				colorPatternMap2.put("緑青", Constants_colorOfThree.BLOCPATTERN_GREEN_BLUE);
 				break;
 			case 10:
-				colorPatternMap2.put("緑緑", i);
+				colorPatternMap2.put("緑緑", Constants_colorOfThree.BLOCPATTERN_GREEN_GREEN);
 				break;
 			case 11:
-				colorPatternMap2.put("緑白", i);
+				colorPatternMap2.put("緑白", Constants_colorOfThree.BLOCPATTERN_GREEN_WHITE);
 				break;
 			case 12:
-				colorPatternMap2.put("白赤", i);
+				colorPatternMap2.put("白赤", Constants_colorOfThree.BLOCPATTERN_WHITE_RED);
 				break;
 			case 13:
-				colorPatternMap2.put("白青", i);
+				colorPatternMap2.put("白青", Constants_colorOfThree.BLOCPATTERN_WHITE_BLUE);
 				break;
 			case 14:
-				colorPatternMap2.put("白緑", i);
+				colorPatternMap2.put("白緑", Constants_colorOfThree.BLOCPATTERN_WHITE_GREEN);
 				break;
 			case 15:
-				colorPatternMap2.put("白白", i);
+				colorPatternMap2.put("白白", Constants_colorOfThree.BLOCPATTERN_WHITE_WHITE);
 				break;
 			case 16:
-				colorPatternMap2.put("ss", i);
+				colorPatternMap2.put("ss", Constants_colorOfThree.BLOCPATTERN_SPACE);
 				break;
 			}
 		}
@@ -245,9 +290,9 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 	 * 適切な輪郭を判断する
 	 *
 	 * @param detectionContour
-	 *            入力輪郭
+	 * 			入力輪郭
 	 * @param areaThreshold
-	 *            輪郭大きさのしきい値
+	 * 			輪郭大きさのしきい値
 	 * @return 適切な輪郭であればTrueを返す
 	 */
 	private Boolean rectangleChecker(MatOfPoint detectionContour, int areaThreshold) {
@@ -289,51 +334,46 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 	 *            マーカの行列分割値
 	 * @return カラー・コードマーカを検出できたらTrueを返す。
 	 */
-	private Boolean markerChecker(MatOfPoint detectionContour, Mat srcImage, Mat datImage, int areaThreshold,
-			int division) {
+	private Boolean markerChecker(MatOfPoint detectionContour, Mat srcImage, Mat datImage, int areaThreshold, int division) {
 		if (rectangleChecker(detectionContour, areaThreshold) == false) {
 			return false;
 		}
 		/*
-		 * ４色確認 射影変換 変換元座標設定
+		 * ４色確認 射影変換 変換元座標設定////////////////////////////////////////////////////////////////////////////
 		 */
 		float srcPoint[] = new float[8];
+		Mat srcPointMat = new Mat(4, 2, CvType.CV_32F);
 		for (int i = 0; i < Constants_colorOfThree.MARKER_BLOCK; i++) {
 			srcPoint[i * 2] = (float) detectionContour.get(i, 0)[0];
 			srcPoint[i * 2 + 1] = (float) detectionContour.get(i, 0)[1];
 		}
-		Mat srcPointMat = new Mat(4, 2, CvType.CV_32F);
 		srcPointMat.put(0, 0, srcPoint);
-
-		// 変換後座標設定
+		// 変換後座標設定//////////////////////////////////////////////////////////////////////////////////////////////
 		Mat dstPointMat = new Mat(4, 2, CvType.CV_32F);
 		float[] dstPoint;
 		dstPoint = new float[] { datImage.cols(), datImage.rows(), datImage.cols(), 0, 0, 0, 0, datImage.rows() };
 		dstPointMat.put(0, 0, dstPoint);
-
-		// 変換行列作成
+		// 変換行列作成////////////////////////////////////////////////////////////////////////////////////////////////
 		Mat r_mat = Imgproc.getPerspectiveTransform(srcPointMat, dstPointMat);
-
-		// 図形変換処理
+		// 図形変換処理////////////////////////////////////////////////////////////////////////////////////////////////
 		Mat dstMat = new Mat(datImage.rows(), datImage.cols(), datImage.type());
-		Imgproc.warpPerspective(srcImage, dstMat, r_mat, dstMat.size(), Imgproc.INTER_LINEAR);
 		Mat cuttingImage = new Mat(dstMat, new Rect(0, 0, datImage.cols(), datImage.rows()));
+		Imgproc.warpPerspective(srcImage, dstMat, r_mat, dstMat.size(), Imgproc.INTER_LINEAR);
 		cuttingImage.copyTo(datImage);
-
-		////////////////////////////////////// ４色確認Collar
+		//４色+コード№確認Collar//////////////////////////////////////////////////////////////////////////////////////
 		char[] collarCheckbox = new char[Constants_colorOfThree.MARKER_BLOCK];
-		int boxCount = 0;
+		int boxCount = 0, x = 0, y = 0;
 		double[] data = new double[Constants_colorOfThree.HSV_CH];// HSV各チャンネル格納用
 		double oneThirdWidth = (datImage.rows()) / (double) division;
 		double oneThirdHeight = (datImage.cols()) / (double) division;
-
+		codeNoKeep = ' ';
+		codeNo = "";
 		for (int i = 0; i < division; i++) {
 			for (int j = 0; j < division; j++) {
-				if (i == 0 && j == 0 || i == 0 && j == division - 1 || i == division - 1 && j == 0
-						|| i == division - 1 && j == division - 1) {
-					int x = (int) ((j * oneThirdWidth + (j + 1) * oneThirdWidth) / 2);
-					int y = (int) ((i * oneThirdHeight + (i + 1) * oneThirdHeight) / 2);
-					data = cuttingImage.get(y, x);// HSV各チャンネルを格納(y,x)なので注意
+				if (i == 0 && j == 0 || i == 0 && j == division - 1 || i == division - 1 && j == 0 || i == division - 1 && j == division - 1) {
+					x = (int) ((j * oneThirdWidth + (j + 1) * oneThirdWidth) / 2);
+					y = (int) ((i * oneThirdHeight + (i + 1) * oneThirdHeight) / 2);
+					data = cuttingImage.get(y, x);// HSV各チャンネルを格納(y,x)なので注意(cuttingImage)
 					if (data[0] * 2 <= 45 || data[0] * 2 >= 330) {// H（色相）を元に色を判断
 						collarCheckbox[boxCount++] = 'A';
 					} else if (data[0] * 2 > 45 && data[0] * 2 <= 135) {
@@ -341,7 +381,6 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 					} else if (data[0] * 2 > 135 && data[0] * 2 <= 225) {
 						collarCheckbox[boxCount++] = 'C';
 					} else {
-						// System.out.print( "青");
 						collarCheckbox[boxCount++] = 'D';
 					}
 					Imgproc.circle(cuttingImage, new Point(x, y), 1, new Scalar(255, 255, 255), -1);// 色情報取得点可視化
@@ -366,7 +405,7 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 		default:// 枠外エラー
 			return false;
 		}
-		System.out.println(sumWord);
+		//		System.out.println(sumWord);
 		cuttingImage.copyTo(datImage);
 		return true;
 	}
@@ -384,7 +423,6 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 	private void transformMarker(Mat srcImage, Mat datImage, int TransformKey) {
 		// 変換元座標設定
 		float srcPoint[] = { 0, 0, srcImage.cols(), 0, srcImage.cols(), srcImage.rows(), 0, srcImage.rows() };
-
 		Mat srcPointMat = new Mat(4, 2, CvType.CV_32F);
 		srcPointMat.put(0, 0, srcPoint);
 		// 変換後座標設定
@@ -446,27 +484,142 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 		double[] pointData = new double[Constants_colorOfThree.HSV_CH];// HSV各チャンネル格納用(取得)
 		double[] averageData = new double[Constants_colorOfThree.HSV_CH];// HSV各チャンネル格納用(平均算出)
 		String[] colorPattern = new String[Constants_colorOfThree.BLOCK_OF_BYTE];// カラーパターン格納(取得)
+		int indexCounter = 0, missCount = 0, inImgBytesIndex = 0, x = 0, y = 0;
+		byte loopCount = 0;
 		String mapOfPattern_First_str = null;// カラーパターン格納(前半２ブロック)
 		String mapOfPattern_Second_str = null;// カラーパターン格納(後半２ブロック)
 		double oneThirdWidth = (endX - startX) / division;
 		double oneThirdHeight = (endY - startY) / division;
-		int indexCounter = 0;
-		int missCount = 0;
-		int loopCount = 0;
-		int inImgBytesIndex = 0;
 		// int inImgByteArrayIndex = 0;
-		byte blocDecordeCount = 1;
-
+		if (keepCheck == true) {
+			loopCount = loopCountKeep;
+			mapOfPattern_First_str = PatternKeep_First_str;
+			keepCheck = false;
+		}
 		for (int i = 0; i < division; i++) {
 			if (missCount > 0) {
+				missCount = 0;
+				receiveList_Parts.clear();
 				break;
 			}
 			for (int j = 0; j < division; j++) {
-				if (i == 0 && j == 0 || i == 0 && j == division - 1 || i == division - 1 && j == 0
-						|| i == division - 1 && j == division - 1) {
+				System.out.println(codeNo);
+				if (i == 0 && j == 0 || i == 0 && j == division - 1 || i == division - 1 && j == 0) {
+				} else if (i == 0 && j == 1) {
+					x = (int) ((j * oneThirdWidth + (j + 1) * oneThirdWidth) / 2);
+					y = (int) ((i * oneThirdHeight + (i + 1) * oneThirdHeight) / 2);
+					data = srcImage.get(y, x);// HSV各チャンネルを格納(y,x)なので注意
+					Imgproc.circle(srcImage, new Point(x, y), 1, new Scalar(255, 255, 255), -1);// 色情報取得点可視化
+					if (data[1] < 100 && data[2] >= 150) {// H（色相）S(彩度) V(明度)を元に色を判断;
+						codeNoKeep = '白';
+						continue;
+					} else if (data[1] >= 100 && data[0] * 2 >= 0 && data[0] * 2 < 80) {
+						codeNoKeep = '赤';
+						continue;
+					} else if (data[1] >= 100 && data[0] * 2 >= 80 && data[0] * 2 < 148) {
+						codeNoKeep = '緑';
+						continue;
+					} else if (data[1] >= 100 && data[0] * 2 >= 148 && data[0] * 2 < 258) {
+						codeNoKeep = '青';
+						continue;
+					} else {
+						codeNoKeep = ' ';
+						//System.out.println("errorの数値\n" + data[0] * 2 + " " + data[1] + " " + data[2]);
+						continue;
+					}
+				} else if (i == 0 && j == 2) {
+					x = (int) ((j * oneThirdWidth + (j + 1) * oneThirdWidth) / 2);
+					y = (int) ((i * oneThirdHeight + (i + 1) * oneThirdHeight) / 2);
+					data = srcImage.get(y, x);// HSV各チャンネルを格納(y,x)なので注意
+					Imgproc.circle(srcImage, new Point(x, y), 1, new Scalar(255, 255, 255), -1);// 色情報取得点可視化
+					if (data[1] < 100 && data[2] >= 150) {// H（色相）S(彩度) V(明度)を元に色を判断;
+						codeNo = codeNoKeep + "白";
+						receiveList_Parts.clear();
+						continue;
+					} else if (data[1] >= 100 && data[0] * 2 >= 0 && data[0] * 2 < 80) {
+						codeNo = codeNoKeep + "赤";
+						receiveList_Parts.clear();
+						continue;
+					} else if (data[1] >= 100 && data[0] * 2 >= 80 && data[0] * 2 < 148) {
+						codeNo = codeNoKeep + "緑";
+						receiveList_Parts.clear();
+						continue;
+					} else if (data[1] >= 100 && data[0] * 2 >= 148 && data[0] * 2 < 258) {
+						codeNo = codeNoKeep + "青";
+						receiveList_Parts.clear();
+						continue;
+					} else {
+						codeNoKeep = ' ';
+						codeNo = "";
+						receiveList_Parts.clear();
+						//						System.out.println("errorの数値\n" + data[0] * 2 + " " + data[1] + " " + data[2]);
+						continue;
+					}
+				} else if (i == division - 1 && j == division - 1) {
+					if (loopCount == 2 && keepCheck == false) {
+						PatternKeep_First_str = mapOfPattern_First_str;
+						keepCheck = true;
+					}
+					switch (codeNo) {
+					case "赤赤":
+						if (codeCheck[0] == false) {
+							codeCheck[0] = true;
+							for (int j2 = 0; j2 < receiveList_Parts.size(); j2++) {
+								receiveList_Panel[0][j2] = receiveList_Parts.get(j2);
+							}
+							codeCountCheck();
+							receiveList_Parts.clear();
+						}
+						break;
+					case "緑緑":
+						if (codeCheck[1] == false) {
+							codeCheck[1] = true;
+							for (int j2 = 0; j2 < receiveList_Parts.size(); j2++) {
+								receiveList_Panel[1][j2] = receiveList_Parts.get(j2);
+							}
+							codeCountCheck();
+							receiveList_Parts.clear();
+						}
+						break;
+					case "青青":
+						if (codeCheck[2] == false) {
+							codeCheck[2] = true;
+							for (int j2 = 0; j2 < receiveList_Parts.size(); j2++) {
+								receiveList_Panel[2][j2] = receiveList_Parts.get(j2);
+							}
+							codeCountCheck();
+							receiveList_Parts.clear();
+						}
+						break;
+					case "白白":
+						if (codeCheck[3] == false) {
+							codeCheck[3] = true;
+							for (int j2 = 0; j2 < receiveList_Parts.size(); j2++) {
+								receiveList_Panel[3][j2] = receiveList_Parts.get(j2);
+							}
+							codeCountCheck();
+							receiveList_Parts.clear();
+						}
+						break;
+					case "赤緑":
+						if (codeCheck[4] == false) {
+							codeCheck[4] = true;
+							for (int j2 = 0; j2 < receiveList_Parts.size(); j2++) {
+								receiveList_Panel[4][j2] = receiveList_Parts.get(j2);
+							}
+							codeCountCheck();
+							receiveList_Parts.clear();
+						}
+						break;
+					default:
+						codeNoKeep = ' ';
+						codeNo = "";
+						receiveList_Parts.clear();
+						break;
+					}
 				} else {
-					int x = (int) (startX + (j * oneThirdWidth + (j + 1) * oneThirdWidth) / 2);
-					int y = (int) (startY + (i * oneThirdHeight + (i + 1) * oneThirdHeight) / 2);
+					x = (int) (startX + (j * oneThirdWidth + (j + 1) * oneThirdWidth) / 2);
+					y = (int) (startY + (i * oneThirdHeight + (i + 1) * oneThirdHeight) / 2);
 					if (loopCount >= Constants_colorOfThree.BLOCK_OF_BYTE) {
 						loopCount = 0;
 					}
@@ -483,7 +636,7 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 							Imgproc.circle(srcImage,
 									new Point(x - Constants_colorOfThree.DISTANCE＿OF_POINT,
 											y + Constants_colorOfThree.DISTANCE＿OF_POINT),
-									1, new Scalar(255, 255, 255), -1);// 色情報取得点可視化(まだ平均値を取得未実装)
+									1, new Scalar(255, 255, 255), -1);// 色情報取得点可視化
 							for (int k2 = 0; k2 < averageData.length; k2++) {
 								averageData[k2] += pointData[k2];
 							}
@@ -494,7 +647,7 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 							Imgproc.circle(srcImage,
 									new Point(x + Constants_colorOfThree.DISTANCE＿OF_POINT,
 											y + Constants_colorOfThree.DISTANCE＿OF_POINT),
-									1, new Scalar(255, 255, 255), -1);// 色情報取得点可視化(まだ平均値を取得未実装)
+									1, new Scalar(255, 255, 255), -1);// 色情報取得点可視化
 							for (int k2 = 0; k2 < averageData.length; k2++) {
 								averageData[k2] += pointData[k2];
 							}
@@ -505,7 +658,7 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 							Imgproc.circle(srcImage,
 									new Point(x + Constants_colorOfThree.DISTANCE＿OF_POINT,
 											y - Constants_colorOfThree.DISTANCE＿OF_POINT),
-									1, new Scalar(255, 255, 255), -1);// 色情報取得点可視化(まだ平均値を取得未実装)
+									1, new Scalar(255, 255, 255), -1);// 色情報取得点可視化
 							for (int k2 = 0; k2 < averageData.length; k2++) {
 								averageData[k2] += pointData[k2];
 							}
@@ -516,7 +669,7 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 							Imgproc.circle(srcImage,
 									new Point(x - Constants_colorOfThree.DISTANCE＿OF_POINT,
 											y - Constants_colorOfThree.DISTANCE＿OF_POINT),
-									1, new Scalar(255, 255, 255), -1);// 色情報取得点可視化(まだ平均値を取得未実装)
+									1, new Scalar(255, 255, 255), -1);// 色情報取得点可視化
 							for (int k2 = 0; k2 < averageData.length; k2++) {
 								averageData[k2] += pointData[k2];
 							}
@@ -528,70 +681,66 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 						data[k] = (averageData[k] / Constants_colorOfThree.NUMBER＿OF_POINT);// 色相、彩度、明度それぞれの平均抽出
 					}
 					// ------------------------------------------------------------------------------------------------------------------------------------------
-					// H（色相）S(彩度) V(明度)を元に色を判断;
-					if (data[1] < 100 && data[2] >= 150) {
-						receiveList.add("no");// 白
+					if (data[1] < 100 && data[2] >= 150) {// H（色相）S(彩度) V(明度)を元に色を判断;
+						receiveList_Parts.add("4");// 白
 						colorPattern[loopCount] = "白";
 					} else if (data[2] < 100) {
-						receiveList.add("space");// 黒
+						receiveList_Parts.add("space");// 黒
 						colorPattern[loopCount] = "s";
 					} else if (data[1] >= 100 && data[0] * 2 >= 0 && data[0] * 2 < 80) {
-						receiveList.add("1");// 赤
+						receiveList_Parts.add("1");// 赤
 						colorPattern[loopCount] = "赤";
 					} else if (data[1] >= 100 && data[0] * 2 >= 80 && data[0] * 2 < 148) {
-						receiveList.add("2");// 緑
+						receiveList_Parts.add("2");// 緑
 						colorPattern[loopCount] = "緑";
 					} else if (data[1] >= 100 && data[0] * 2 >= 148 && data[0] * 2 < 258) {
-						receiveList.add("3");// 青
+						receiveList_Parts.add("3");// 青
 						colorPattern[loopCount] = "青";
 					} else {
-						receiveList.add("error");
-						System.out.println("errorの数値\n" + data[0] * 2 + " " + data[1] + " " + data[2]);
+						receiveList_Parts.add("error");
+						missCount++;
 						colorPattern[loopCount] = "エラ";
 					}
-					// if (blocDecordeCount <=
-					// Constants_colorOfThree.BLOCK_OF_BYTE) {
-					// inImgBytes[inImgByteArrayIndex] = (byte)
-					// hexadecimalOfBloc;
-					// blocDecordeCount = 0;
-					// hexadecimalOfBloc = 0;
-					// inImgByteArrayIndex++;
-					// }
-					// if (blocDecordeCount ==
-					// Constants_colorOfThree.COLORENCORD_BITS_SECOND_HALF) {
-					// hexadecimalOfBloc = (hexadecimalOfBloc << 4);
-					// }
-					System.out.println(
-							(i * (division - 1) + j) + "つ目のブロック" + (data[0] * 2) + " " + data[1] + " " + data[2]);
-					blocDecordeCount++;
-					// loopCount++;
-					if (receiveList.isEmpty()
-							|| createTransmisstionImage2_colorOfThree.getTransmissionList().isEmpty()) {
-						System.out.println("送受信が行われていません");
-					} else
-						if (createTransmisstionImage2_colorOfThree.getTransmissionList().size() != receiveList.size()) {
-						System.out.println("送受信の設定が間違っています");
-						// System.out.println("受信データ数" + receiveList.size());
-						// System.out.println("送信データ数" +
-						// createTransmisstionImage2_colerOfThree.getTransmissionList().size());
-					} else if (createTransmisstionImage2_colorOfThree.getTransmissionList().size() == receiveList
-							.size()) {
-						listCountCheck = true;
-					} else {
-					}
-					System.out.println(createTransmisstionImage2_colorOfThree.getTransmissionList().size());
-					if (!receiveList.isEmpty() && !createTransmisstionImage2_colorOfThree.getTransmissionList()
-							.get(indexCounter).equals(receiveList.get(indexCounter))) {
-						missCount++;
-						System.out.println(indexCounter + "つめの送信dataが"
-								+ createTransmisstionImage2_colorOfThree.getTransmissionList().get(indexCounter)
-								+ "に対して" + "受信されたもの値が" + receiveList.get(indexCounter) + "だったため取得ミスです");
-						listCountCheck = false;
-						clearReceiveImgList();
-						indexCounter = 0;
-						break;
-					} else if (missCount == 0 && listCountCheck == true) {
+					//					if (receiveList.isEmpty()
+					//							|| createTransmisstionImage2_colorOfThree.getTransmissionList().isEmpty()) {
+					//						System.out.println("送受信が行われていません");
+					//					}
+					//					else
+					//						if (createTransmisstionImage2_colorOfThree.getTransmissionList().size() != receiveList.size()) {
+					//						System.out.println("送受信の設定が間違っています");
+					//						 System.out.println("受信データ数" + receiveList.size());
+					//						 System.out.println("送信データ数" +
+					//						 createTransmisstionImage2_colerOfThree.getTransmissionList().size());
+					//					} else if (createTransmisstionImage2_colorOfThree.getTransmissionList().size() == receiveList
+					//							.size()) {
+					//						listCountCheck = true;
+					//					} else {
+					//					}
+					//					System.out.println(createTransmisstionImage2_colorOfThree.getTransmissionList().size());
+					//					if (!receiveList.isEmpty() && !createTransmisstionImage2_colorOfThree.getTransmissionList().get(indexCounter).equals(receiveList.get(indexCounter))) {
+					//						missCount++;
+					//						System.out.println(indexCounter + "つめの送信dataが"
+					//								+ createTransmisstionImage2_colorOfThree.getTransmissionList().get(indexCounter)
+					//								+ "に対して" + "受信されたもの値が" + receiveList.get(indexCounter) + "だったため取得ミスです");
+					//						listCountCheck = false;
+					//						clearReceiveImgList();
+					//						indexCounter = 0;
+					//						break;
+					//					} else
+					if (codeCountCheck == true && receiveAction == true) {//(missCount == 0 && listCountCheck == true)
+						System.out.println("全てのコードパネル受信完了");
 						setRunningKey(false);
+						for (int k = 0; k < receiveList_Panel.length; k++) {
+							for (int k2 = 0; k2 < receiveList_Panel[k].length; k2++) {
+								if(!(StringUtils.isEmpty(receiveList_Panel[k][k2]))){
+									receiveList.add(receiveList_Panel[k][k2]);
+								}
+							}
+						}
+						System.out.print("\n"+receiveList+"\n");
+						System.out.print("\n"+this.createTransmisstionImage2_colorOfThree.getTransmissionList()+"\n");
+						receiveAction = false;
+						break;
 					}
 					if (loopCount == Constants_colorOfThree.COLORENCORD_BITS_FIRST_HALF_V) {
 						mapOfPattern_First_str = colorPattern[Constants_colorOfThree.BLOCK_1_4]
@@ -604,37 +753,95 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 					loopCount++;
 					if (loopCount == Constants_colorOfThree.BLOCK_OF_BYTE) {
 						if (!(mapOfPattern_First_str.equals("ss")) || !(mapOfPattern_Second_str.equals("ss"))) {
-							inImgBytes.add((byte) (((colorPatternMap_V.get(mapOfPattern_First_str)) << 4)
-									| (colorPatternMap_V.get(mapOfPattern_Second_str))));
+							/*
+							 * インデックスが一つしか用意していないので一つのパネルにおいて取得が時間内に間に合わなかった場合インデックスが初期化されてしまう可能性あり
+							 */
+							switch (codeNo) {
+							case "赤赤":
+								//								if (codeCheck[Constants_colorOfThree.PANELPATTERN_RED_RED] == false) {
+								//									parts_Of_Data[Constants_colorOfThree.PANELPATTERN_RED_RED][inImgBytesIndex] = ((byte) ((colorPatternMap_V.get(mapOfPattern_First_str)) << 4)
+								//											| (colorPatternMap_V.get(mapOfPattern_Second_str)));
+								//								}
+								break;
+							case "緑緑":
+								//								if (codeCheck[Constants_colorOfThree.PANELPATTERN_GREEN_GREEN] == false) {
+								//									parts_Of_Data[Constants_colorOfThree.PANELPATTERN_GREEN_GREEN][inImgBytesIndex] = ((byte) ((colorPatternMap_V.get(mapOfPattern_First_str)) << 4)
+								//											| (colorPatternMap_V.get(mapOfPattern_Second_str)));
+								//								}
+								break;
+							case "青青":
+								//								if (codeCheck[Constants_colorOfThree.PANELPATTERN_BLUE_BLUE] == false) {
+								//									parts_Of_Data[Constants_colorOfThree.PANELPATTERN_BLUE_BLUE][inImgBytesIndex] = ((byte) ((colorPatternMap_V.get(mapOfPattern_First_str)) << 4)
+								//											| (colorPatternMap_V.get(mapOfPattern_Second_str)));
+								//								}
+								break;
+							case "白白":
+								//								if (codeCheck[Constants_colorOfThree.PANELPATTERN_WHITE_WHITE] == false) {
+								//									parts_Of_Data[Constants_colorOfThree.PANELPATTERN_WHITE_WHITE][inImgBytesIndex] = ((byte) ((colorPatternMap_V.get(mapOfPattern_First_str)) << 4)
+								//											| (colorPatternMap_V.get(mapOfPattern_Second_str)));
+								//								}
+								break;
+							case "赤緑":
+								//								if (codeCheck[Constants_colorOfThree.PANELPATTERN_RED_GREEN] == false) {
+								//									parts_Of_Data[Constants_colorOfThree.PANELPATTERN_RED_GREEN][inImgBytesIndex] = ((byte) ((colorPatternMap_V.get(mapOfPattern_First_str)) << 4)
+								//											| (colorPatternMap_V.get(mapOfPattern_Second_str)));
+								//								}
+								break;
+							default:
+								break;
+							}
 							inImgBytesIndex++;
+							//inImgBytes.add((byte) (((colorPatternMap_V.get(mapOfPattern_First_str)) << 4) | (colorPatternMap_V.get(mapOfPattern_Second_str))));
 						}
-
 					}
 				}
+			}
+		}
+
+	}
+
+	/**
+	 * 全パネルのコードが取得できたかを判別
+	 */
+	private void codeCountCheck() {
+		codeCountCheck = true;
+		for (boolean Count_TorF : codeCheck) {
+			if (!Count_TorF) {
+				codeCountCheck = false;
+				break;
 			}
 		}
 	}
 
 	/**
 	 * カラー・コードを認識するまで受信処理をループ
+	 * ( Listの宣言はループ内に移動Listのクリアが不要となった 15/11/1 岩男 )
 	 */
 	private void receiverLoop() {
 		Mat markerImage = new Mat(500, 500, 16);
-
 		List<MatOfPoint> contoursList = new ArrayList<MatOfPoint>();// 読み取った輪郭線を格納
 		List<MatOfPoint> dorawOutLineList = new ArrayList<>();// 認識した矩形マーカの輪郭線を格納
 		List<Mat> hsvList = new ArrayList<Mat>();
-		// Listの宣言はループ内に移動Listのクリアが不要となった15/11/1(岩男
 		Mat webcamImage = new Mat();// webカメラのイメージ
 		captureCamera.read(webcamImage);// webカメラの映像を画像保存
-		if (webcamImage.empty()) {// 画像が取得できているか判断
-			System.out.println(" --(!) No captured frame -- Break!");// キャプチャの失敗時
-			if (!captureCamera.isOpened()) {
-				JOptionPane.showMessageDialog(null, "カメラが認識されていません、再度確認してください", "Warn", JOptionPane.WARNING_MESSAGE);
-				stopRunning();
-			}
-			return;
+		cameraCheck(webcamImage);
+		//カメラ(設定項目ID) 露出(15) ゲイン(14) 明るさ(10) コントラスト(11) 色の強さ(12) 白バランス(17)
+		cameraCount++;
+		if (cameraCount == 100) {
+			System.out.println("露出：" + captureCamera.get(Constants_colorOfThree.ID_EXP));
+			System.out.println("ゲイン：" + captureCamera.get(Constants_colorOfThree.ID_GAIN));
+			System.out.println("明るさ：" + captureCamera.get(Constants_colorOfThree.ID_BRIGHT));
+			System.out.println("コントラスト：" + captureCamera.get(Constants_colorOfThree.ID_CON));
+			System.out.println("色の強さ：" + captureCamera.get(Constants_colorOfThree.ID_SAT));
+			System.out.println("白バランス：" + captureCamera.get(Constants_colorOfThree.ID_WHITE));
+			cameraCount = 0;
 		}
+		captureCamera.set(Constants_colorOfThree.ID_EXP, Constants_colorOfThree.EXP);
+		captureCamera.set(Constants_colorOfThree.ID_GAIN, Constants_colorOfThree.GAIN);
+		captureCamera.set(Constants_colorOfThree.ID_BRIGHT, Constants_colorOfThree.BRIGHT);
+		captureCamera.set(Constants_colorOfThree.ID_CON, Constants_colorOfThree.CON);
+		captureCamera.set(Constants_colorOfThree.ID_SAT, Constants_colorOfThree.SAT);
+		captureCamera.set(Constants_colorOfThree.ID_WHITE, Constants_colorOfThree.WHITE);
 		Mat processedImage = new Mat(webcamImage.rows(), webcamImage.cols(), webcamImage.type());
 		Mat hsvImage = new Mat(webcamImage.rows(), webcamImage.cols(), webcamImage.type());
 		Imgproc.cvtColor(webcamImage, hsvImage, Imgproc.COLOR_BGR2HSV);// HSV変換
@@ -648,9 +855,7 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 		// processedImage,Imgproc.COLOR_BGR2GRAY);グレースケール化
 		// Imgproc.threshold(processedImage, processedImage, 0,
 		// 255,Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);// 二値化
-		Imgproc.findContours(processedImage, contoursList, hierarchyData, Imgproc.RETR_CCOMP,
-				Imgproc.CHAIN_APPROX_SIMPLE);// 画像内の輪郭を検出
-
+		Imgproc.findContours(processedImage, contoursList, hierarchyData, Imgproc.RETR_CCOMP, Imgproc.CHAIN_APPROX_SIMPLE);// 画像内の輪郭を検出
 		for (int i = 0; i < contoursList.size(); i++) {// 取得した輪郭の総数でループ
 			if (hierarchyData.get(0, i)[3] == -1) {// 内部輪郭を持つ輪郭を弾く
 				MatOfPoint2f ptmat2Temp = new MatOfPoint2f();// 画像処理の途中でMatOfPoint2fに一時変換するため
@@ -661,30 +866,40 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 					dorawOutLineList.add(contoursList.get(i));// マーカであることが確定した輪郭を描画リストに追加
 				}
 				if (markerChecker(contoursList.get(i), hsvImage, markerImage, 1000, division)) {// 輪郭が正方形であるかチェック
-					transformMarker(markerImage, markerImage, TransformKey);
-					// Imgproc.medianBlur(markerImage, markerImage, 3);//
-					// 画像のノイズ処理→平滑化
-					colorDecorde(markerImage, 0, 0, markerImage.height(), markerImage.width(), division);
-					List<Mat> hsvList2 = new ArrayList<Mat>();
-					Core.split(markerImage, hsvList2);
-					Mat hImage = hsvList2.get(0).clone();
-					BufferedImage bufferedImageTemp1 = imageDrawing_colorOfThree.matToBufferedImage(hImage);// 描画のためmat型からbufferedImage型に変換
-					hsvImagePanel.setimage(bufferedImageTemp1);// 変換した画像をPanelに追加
-					hsvImageFrame.repaint();// パネルを再描画
-					System.out.println("設定でのフレームレートは\n" + captureCamera.get(Videoio.CAP_PROP_FPS) + "\n現在のキャプチャモードは"
-							+ captureCamera.get(Videoio.CAP_MODE_BGR) + "\n明るさは"
-							+ captureCamera.get(Videoio.CAP_PROP_BRIGHTNESS) + "\nコントラストは"
-							+ captureCamera.get(Videoio.CAP_PROP_CONTRAST) + "\n彩度は"
-							+ captureCamera.get(Videoio.CAP_PROP_SATURATION) + "\n色相は"
-							+ captureCamera.get(Videoio.CAP_PROP_HUE) + "\nゲインは"
-							+ captureCamera.get(Videoio.CAP_PROP_GAIN) + "\n露出は"
-							+ captureCamera.get(Videoio.CAP_PROP_EXPOSURE));
-					if (runningKey == false && listCountCheck == true) {
-						System.out.println("受信されたリストのサイズ" + receiveList.size() + "\nバイナリデータサイズ" + inImgBytes.size()
-								+ "により\n取得成功しました");
-						for (Iterator iterator = inImgBytes.iterator(); iterator.hasNext();) {
-							System.out.println((Byte) iterator.next());
-
+					if (codeNo.equals("赤赤") && codeCheck[0] == true) {
+						System.out.println("赤赤" + codeCheck[0]);
+					} else if (codeNo.equals("緑緑") && codeCheck[1] == true) {
+						System.out.println("緑緑" + codeCheck[1]);
+					} else if (codeNo.equals("青青") && codeCheck[2] == true) {
+						System.out.println("青青" + codeCheck[2]);
+					} else if (codeNo.equals("白白") && codeCheck[3] == true) {
+						System.out.println("白白" + codeCheck[3]);
+					} else if (codeNo.equals("赤緑") && codeCheck[4] == true) {
+						System.out.println("赤緑" + codeCheck[4]);
+					} else {
+						transformMarker(markerImage, markerImage, TransformKey);
+						// Imgproc.medianBlur(markerImage, markerImage, 3);//
+						// 画像のノイズ処理→平滑化
+						colorDecorde(markerImage, 0, 0, markerImage.height(), markerImage.width(), division);
+						List<Mat> hsvList2 = new ArrayList<Mat>();
+						Core.split(markerImage, hsvList2);
+						Mat hImage = hsvList2.get(0).clone();
+						BufferedImage bufferedImageTemp1 = imageDrawing_colorOfThree.matToBufferedImage(hImage);// 描画のためmat型からbufferedImage型に変換
+						hsvImagePanel.setimage(bufferedImageTemp1);// 変換した画像をPanelに追加
+						hsvImageFrame.repaint();// パネルを再描画
+						//						System.out.println("設定でのフレームレートは\n" + captureCamera.get(Videoio.CAP_PROP_FPS) + "\n現在のキャプチャモードは"
+						//								+ captureCamera.get(Videoio.CAP_MODE_BGR) + "\n明るさは"
+						//								+ captureCamera.get(Videoio.CAP_PROP_BRIGHTNESS) + "\nコントラストは"
+						//								+ captureCamera.get(Videoio.CAP_PROP_CONTRAST) + "\n彩度は"
+						//								+ captureCamera.get(Videoio.CAP_PROP_SATURATION) + "\n色相は"
+						//								+ captureCamera.get(Videoio.CAP_PROP_HUE) + "\nゲインは"
+						//								+ captureCamera.get(Videoio.CAP_PROP_GAIN) + "\n露出は"
+						//								+ captureCamera.get(Videoio.CAP_PROP_EXPOSURE));
+						if (runningKey == false && listCountCheck == true) {
+							//							System.out.println("受信されたリストのサイズ" + receiveList.size() + "\nバイナリデータサイズ" + inImgBytes.size() + "により\n取得成功しました");
+							//							for (Iterator iterator = inImgBytes.iterator(); iterator.hasNext();) {
+							//								System.out.println((Byte) iterator.next());
+							//							}
 						}
 					}
 				}
@@ -697,41 +912,18 @@ public class VisibleLightReceiver2_colorOfThree extends Thread {
 		processedImageFrame.repaint();// パネルを再描画
 
 	}
+
+	/**
+	 * @param webcamImage
+	 */
+	private void cameraCheck(Mat webcamImage) {
+		if (webcamImage.empty()) {// 画像が取得できているか判断
+			System.out.println(" --(!) No captured frame -- Break!");// キャプチャの失敗時
+			if (!captureCamera.isOpened()) {
+				JOptionPane.showMessageDialog(null, "カメラが認識されていません、再度確認してください", "Warn", JOptionPane.WARNING_MESSAGE);
+				stopRunning();
+			}
+			return;
+		}
+	}
 }
-
-//// 3色用
-// if (data[0] * 2 <= 60 || data[0] * 2 >= 300) {//
-// receiveList.add("0");
-// } else if (data[0] * 2 <= 180) {
-// receiveList.add("120");
-// } else {
-// receiveList.add("240");
-// }
-// System.out.println(data[2]);
-
-// 12色用
-// if (data[0] * 2 <= 15 || data[0] * 2 >= 345) {
-// receiveList.add("0");
-// } else if (data[0] * 2 <= 45) {
-// receiveList.add("30");
-// } else if (data[0] * 2 <= 75) {
-// receiveList.add("60");
-// } else if (data[0] * 2 <= 115) {
-// receiveList.add("90");
-// } else if (data[0] * 2 <= 135) {
-// receiveList.add("120");
-// } else if (data[0] * 2 <= 165) {
-// receiveList.add("150");
-// } else if (data[0] * 2 <= 195) {
-// receiveList.add("180");
-// } else if (data[0] * 2 <= 225) {
-// receiveList.add("210");
-// } else if (data[0] * 2 <= 255) {
-// receiveList.add("240");
-// } else if (data[0] * 2 <= 285) {
-// receiveList.add("270");
-// } else if (data[0] * 2 <= 315) {
-// receiveList.add("300");
-// } else if (data[0] * 2 <= 345) {
-// receiveList.add("330");
-// }
